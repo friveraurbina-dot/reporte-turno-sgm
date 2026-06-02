@@ -1,1 +1,373 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte SGM</title></head><body><p>Cargando reporte...</p></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reporte de Turno – SGM Distribución Chilquinta</title>
+<style>
+:root{
+  --azul:#003f7d; --azul2:#0066cc; --naranja:#e87722;
+  --gris:#f0f4f8; --borde:#d1d9e6; --texto:#1a2333;
+  --verde:#1a9a4a; --rojo:#cc2200; --amarillo:#d4890a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:var(--gris);color:var(--texto);font-size:13px}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,#003f7d,#005baa);color:#fff;display:flex;align-items:stretch}
+.hdr-logo{background:#fff;padding:10px 18px;display:flex;align-items:center;gap:10px;min-width:130px}
+.hdr-logo .brand{font-size:20px;font-weight:900;color:#003f7d;letter-spacing:1px}
+.hdr-logo .sub-brand{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.5px}
+.hdr-info{flex:1;padding:12px 20px}
+.hdr-info h1{font-size:16px;font-weight:700;margin-bottom:3px}
+.hdr-info p{font-size:11px;opacity:.85}
+.hdr-meta{padding:12px 16px;text-align:right;display:flex;flex-direction:column;justify-content:center;gap:4px}
+.turno-pill{display:inline-block;padding:4px 14px;border-radius:20px;font-weight:700;font-size:12px;background:var(--naranja);color:#fff}
+.hdr-meta .ts{font-size:11px;opacity:.8}
+
+/* TURNO BAR */
+.tbar{background:#dde6f0;border-bottom:2px solid var(--azul);padding:7px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.tbar label{font-weight:700;font-size:12px;color:var(--azul)}
+.tbtn{padding:4px 16px;border-radius:14px;border:2px solid var(--azul);background:#fff;color:var(--azul);font-weight:700;font-size:11px;cursor:pointer;transition:.2s}
+.tbtn.on{background:var(--azul);color:#fff}
+.tbtn:hover:not(.on){background:#cddaee}
+.tbar .act-btn{margin-left:auto;padding:5px 14px;background:var(--azul2);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:11px;font-weight:700}
+.tbar .act-btn:hover{background:var(--azul)}
+.tbar .print-btn{padding:5px 14px;background:#6c757d;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:11px;font-weight:700}
+
+/* GRID */
+.main{padding:14px 16px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card{background:#fff;border-radius:10px;border:1px solid var(--borde);overflow:hidden;box-shadow:0 2px 5px rgba(0,0,0,.06)}
+.card.full{grid-column:1/-1}
+.ch{display:flex;align-items:center;gap:7px;padding:9px 14px;border-bottom:1px solid var(--borde);background:linear-gradient(90deg,#eaf0f9,#fff)}
+.ch .ico{font-size:16px}
+.ch h2{font-size:12px;font-weight:700;color:var(--azul);text-transform:uppercase;letter-spacing:.4px;flex:1}
+.ch .badge{padding:2px 9px;border-radius:8px;font-size:10px;font-weight:700}
+.live{background:#d4edda;color:#155724}
+.warn{background:#fff3cd;color:#856404}
+.cb{padding:12px 14px}
+
+/* KPI */
+.krow{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kpi{background:var(--gris);border-radius:8px;padding:10px;text-align:center;border:1px solid var(--borde)}
+.kpi .v{font-size:26px;font-weight:800;color:var(--azul);line-height:1}
+.kpi .l{font-size:10px;color:#777;margin-top:3px}
+
+/* IFRAME PANELS */
+.iframe-box{width:100%;border-radius:8px;overflow:hidden;border:1px solid var(--borde);background:#000}
+.iframe-box iframe{width:100%;display:block;border:none}
+.iframe-note{font-size:10px;color:#888;padding:5px 10px;background:#f5f5f5;border-top:1px solid #eee;display:flex;align-items:center;gap:4px}
+.iframe-note a{color:var(--azul2);text-decoration:none}
+
+/* SEC DATA TABLE */
+.sec-alert{background:#d4edda;border-left:4px solid var(--verde);border-radius:6px;padding:7px 11px;margin-bottom:10px;font-size:11px;font-weight:700;color:#155724}
+.sec-highlight{background:linear-gradient(135deg,#fff8e1,#fffde7);border:2px solid var(--naranja);border-radius:8px;padding:9px 12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.sec-highlight .rname{font-size:14px;font-weight:800;color:var(--azul)}
+.sec-highlight .cnt{font-size:28px;font-weight:800;color:var(--naranja);line-height:1}
+.sec-highlight .lbl{font-size:10px;color:#888}
+.sec-table{width:100%;border-collapse:collapse;font-size:11px}
+.sec-table th{background:var(--azul);color:#fff;padding:5px 8px;text-align:left;font-size:10px}
+.sec-table td{padding:4px 8px;border-bottom:1px solid #eee}
+.sec-table tr:hover td{background:#f0f4fa}
+.sec-table tr.hl td{background:#fff3e0;font-weight:700;color:var(--naranja)}
+.bar{background:#e9ecef;border-radius:3px;height:7px}
+.bar-f{height:7px;border-radius:3px;background:var(--azul2)}
+.bar-f.hl{background:var(--naranja)}
+
+/* ACTIVIDADES */
+.act-form{background:#f0f4fa;border-radius:8px;padding:12px;margin-bottom:12px}
+.act-form .ftitle{font-size:11px;font-weight:700;color:var(--azul);margin-bottom:9px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.fld label{font-size:10px;font-weight:700;color:#555;margin-bottom:3px;display:block}
+.fld input,.fld select,.fld textarea{width:100%;padding:6px 9px;border:1px solid var(--borde);border-radius:5px;font-size:12px;font-family:inherit;background:#fafbfd}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--azul2)}
+.fld textarea{resize:vertical;min-height:52px}
+.btn-add{background:var(--azul);color:#fff;border:none;border-radius:6px;padding:7px 18px;font-size:12px;font-weight:700;cursor:pointer;margin-top:8px}
+.btn-add:hover{background:var(--azul2)}
+
+.wsp-src-badge{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:8px;background:#d4edda;color:#155724}
+.wsp-src-badge.sat{background:#fff3cd;color:#856404}
+
+/* ACTIVITY LIST */
+.act-list{display:flex;flex-direction:column;gap:7px}
+.act-item{background:var(--gris);border-left:4px solid var(--azul2);border-radius:6px;padding:9px 12px;position:relative}
+.act-item.completada{border-left-color:var(--verde)}
+.act-item.en-curso{border-left-color:var(--amarillo)}
+.act-item.alerta{border-left-color:var(--rojo)}
+.at{display:flex;align-items:center;gap:7px;margin-bottom:3px;flex-wrap:wrap}
+.at .hora{font-size:10px;color:#999}
+.at .cuad{font-weight:700;color:var(--azul);font-size:11px}
+.at .zona{font-size:10px;background:#e8eef5;color:var(--azul);padding:1px 7px;border-radius:6px}
+.at .est{font-size:10px;font-weight:700;padding:1px 7px;border-radius:6px;margin-left:auto}
+.est-completada{background:#d4edda;color:#155724}
+.est-en-curso{background:#fff3cd;color:#856404}
+.est-alerta{background:#fde2df;color:#7d1a0f}
+.at .src{font-size:10px;color:#aaa}
+.ad{color:#333;line-height:1.4;font-size:12px}
+.act-del{position:absolute;right:7px;top:7px;background:none;border:none;color:#ccc;cursor:pointer;font-size:13px}
+.act-del:hover{color:var(--rojo)}
+.empty{text-align:center;padding:20px;color:#bbb;font-size:12px}
+.empty .eico{font-size:28px;margin-bottom:5px}
+
+/* NOTAS */
+.notas-ta{width:100%;border:1px solid var(--borde);border-radius:8px;padding:9px;font-family:inherit;font-size:12px;resize:vertical;min-height:70px;background:#fafbfd}
+
+/* FOOTER */
+.ftr{background:var(--azul);color:#fff;text-align:center;padding:7px;font-size:10px;opacity:.85}
+
+/* PRINT */
+@media print{.tbar,.btn-add,.act-del,.act-btn,.print-btn{display:none!important}body{background:#fff}.card{box-shadow:none}}
+@media(max-width:850px){.main{grid-template-columns:1fr}.card.full{grid-column:1}.krow{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">
+    <div><div class="brand">CHILQUINTA</div><div class="sub-brand">Energía</div></div>
+  </div>
+  <div class="hdr-info">
+    <h1>Reporte de Actividades en Terreno</h1>
+    <p>Subgerencia de Mantenimiento Distribución – Región de Valparaíso</p>
+  </div>
+  <div class="hdr-meta">
+    <div class="turno-pill" id="badgeTurno">TURNO TARDE</div>
+    <div class="ts" id="tsLabel"></div>
+  </div>
+</div>
+
+<!-- TURNO BAR -->
+<div class="tbar">
+  <label>Turno:</label>
+  <button class="tbtn" onclick="setTurno('Mañana','07:00–15:00',this)">🌅 Mañana</button>
+  <button class="tbtn on" onclick="setTurno('Tarde','15:00–23:00',this)">☀️ Tarde</button>
+  <button class="tbtn" onclick="setTurno('Noche','23:00–07:00',this)">🌙 Noche</button>
+  <button class="act-btn" onclick="syncWhatsApp()">🔄 Sincronizar datos</button>
+  <button class="print-btn" onclick="window.print()">🖨️ Imprimir</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- KPIs -->
+  <div class="card full">
+    <div class="ch"><span class="ico">📊</span><h2>Resumen del Turno</h2><span class="badge live">EN VIVO</span></div>
+    <div class="cb">
+      <div class="krow">
+        <div class="kpi"><div class="v" id="k0">0</div><div class="l">Actividades Totales</div></div>
+        <div class="kpi"><div class="v" id="k1" style="color:var(--verde)">0</div><div class="l">Completadas</div></div>
+        <div class="kpi"><div class="v" id="k2" style="color:var(--amarillo)">0</div><div class="l">En Curso</div></div>
+        <div class="kpi"><div class="v" id="k3" style="color:var(--rojo)">0</div><div class="l">Alertas</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLIMA -->
+  <div class="card">
+    <div class="ch"><span class="ico">🌤️</span><h2>Condición Meteorológica – Valparaíso</h2><span class="badge live">meteochile.gob.cl</span></div>
+    <div class="cb" style="padding:0">
+      <div class="iframe-box">
+        <iframe id="ifClima"
+          src="https://www.meteochile.gob.cl/PortalDMC-web/index.xhtml"
+          height="420"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+          title="Pronóstico Región de Valparaíso">
+        </iframe>
+      </div>
+      <div class="iframe-note">
+        🔗 <a href="https://www.meteochile.gob.cl/PortalDMC-web/index.xhtml" target="_blank">Ver pronóstico completo</a>
+        &nbsp;|&nbsp; Datos al: <span id="climaTs">02/06/2026 12:00</span>
+        &nbsp;|&nbsp; Viña del Mar/Valparaíso: <strong>Despejado 13°C · Hum. 67%</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEC -->
+  <div class="card">
+    <div class="ch"><span class="ico">⚡</span><h2>Interrupciones Eléctricas en Línea</h2><span class="badge live">sec.cl</span></div>
+    <div class="cb" style="padding:0">
+      <div class="iframe-box">
+        <iframe id="ifSEC"
+          src="https://www.sec.cl/interrupciones-en-linea/?view_full_site=true"
+          height="420"
+          sandbox="allow-scripts allow-same-origin allow-forms"
+          title="Interrupciones en Línea SEC">
+        </iframe>
+      </div>
+      <div class="iframe-note">
+        🔗 <a href="https://www.sec.cl/interrupciones-en-linea/" target="_blank">Ver interrupciones en tiempo real</a>
+        &nbsp;|&nbsp; Dato capturado: <strong style="color:var(--naranja)">Valparaíso 818 clientes sin suministro</strong>
+        &nbsp;·&nbsp; 99.7% país con servicio normal
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIVIDADES EN TERRENO -->
+  <div class="card full">
+    <div class="ch">
+      <span class="ico">🔧</span>
+      <h2>Actividades en Terreno</h2>
+      <span class="badge" style="background:#e8f5e9;color:#1b5e20">WhatsApp SGM + SAT Costa</span>
+    </div>
+    <div class="cb">
+
+      <!-- Form -->
+      <div class="act-form">
+        <div class="ftitle">➕ Registrar actividad</div>
+        <div class="row3">
+          <div class="fld"><label>Hora</label><input type="time" id="fHora"></div>
+          <div class="fld"><label>Cuadrilla / Técnico</label><input type="text" id="fCuad" placeholder="Ej: M.Silva – A.Silva"></div>
+          <div class="fld"><label>Zona / Sector</label><input type="text" id="fZona" placeholder="Ej: Quilpué – Parque Pinares"></div>
+        </div>
+        <div class="row2">
+          <div class="fld"><label>Descripción</label><textarea id="fDesc" placeholder="Detalle de la actividad..."></textarea></div>
+          <div>
+            <div class="fld"><label>Estado</label>
+              <select id="fEst"><option value="en-curso">En Curso</option><option value="completada">Completada</option><option value="alerta">Alerta</option></select>
+            </div>
+            <div class="fld" style="margin-top:7px"><label>Fuente</label>
+              <select id="fFuente"><option value="SGM">WhatsApp SGM</option><option value="SAT Costa">WhatsApp SAT Costa</option><option value="Radio">Radio</option><option value="Manual">Manual</option></select>
+            </div>
+          </div>
+        </div>
+        <button class="btn-add" onclick="addAct()">+ Agregar</button>
+      </div>
+
+      <!-- Lista -->
+      <div class="act-list" id="actList"></div>
+
+      <!-- WhatsApp link -->
+      <div style="border-top:1px solid var(--borde);margin-top:12px;padding-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-size:11px;color:#555">📱 Actualizar actividades desde WhatsApp:</div>
+        <a href="https://web.whatsapp.com" target="_blank" style="display:inline-flex;align-items:center;gap:5px;background:#25d366;color:#fff;padding:5px 14px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none">Abrir WhatsApp Web</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- NOTAS -->
+  <div class="card full">
+    <div class="ch"><span class="ico">📝</span><h2>Notas y Observaciones del Turno</h2></div>
+    <div class="cb">
+      <textarea class="notas-ta" id="notas" placeholder="Observaciones generales, condiciones especiales, coordinaciones pendientes..."></textarea>
+      <div style="margin-top:7px;text-align:right">
+        <button class="btn-add" style="background:var(--naranja)" onclick="saveNotas()">💾 Guardar notas</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<div class="ftr">SGM Distribución Chilquinta &nbsp;|&nbsp; Datos integrados: meteochile.gob.cl · sec.cl · WhatsApp Web &nbsp;|&nbsp; Región de Valparaíso</div>
+
+<script>
+// ── Actividades iniciales desde WhatsApp ──
+const INITIAL_ACTS = [
+  // SGM – ayer
+  {id:1,hora:"10:27",cuad:"Rodrigo Canihuante",zona:"Quilpué – Rec Roosevelt Berna",desc:"En ejecución reemplazo de cruceta en alimentador Quilpué, aguas abajo de Rec Roosevelt Berna. Caso puntual y particular, con apoyo de SIMANTEC, supervisado en terreno por Mtto y EH&S.",estado:"completada",fuente:"SGM",fecha:"01/06/2026"},
+  // SGM – hoy
+  {id:2,hora:"10:41",cuad:"Juan Carlos Jaque Chqta",zona:"Municipalidad de La Cruz",desc:"Mesa de trabajo con Municipalidad de La Cruz junto a José Guerrero y Alexis Palacios. Temas: variaciones de voltaje, aumentos de capacidad de consumos Municipalidad, poda y nuevas urbanizaciones.",estado:"completada",fuente:"SGM",fecha:"02/06/2026"},
+  {id:3,hora:"10:48",cuad:"Hernan Chqta",zona:"Sala de capacitaciones",desc:"Capacitación Análisis de Falla: Mantenimiento – Obras – Filiales – Operación.",estado:"completada",fuente:"SGM",fecha:"02/06/2026"},
+  // SAT Costa – hoy
+  {id:4,hora:"11:09",cuad:"M.Silva – A.Silva",zona:"SED 20192 Santa Margarita Tres",desc:"PO: 1606945 | SED 20192 Santa Margarita Tres. Causa: Manejo de vegetación. PR 219799 entregado a las 10:24. Se realiza poda menor en PR mencionado, verificando red BT despejada. Servicio normal en la zona. Pendiente retiro de ramas con área correspondiente.",estado:"completada",fuente:"SAT Costa",fecha:"02/06/2026"},
+  {id:5,hora:"12:35",cuad:"Fabian Fariña – Carolina Perez",zona:"Parque Pinares – Poste 73474660",desc:"PO: 1606971 | 24080 Parque Pinares. Causa: Falta mantenimiento / mantenimiento mal ejecutado. Poste rótulo 73474660: se verifica tripolar auxiliar fase azul en BT en mal contacto y pieza NH00 calcinada con PV 1837. Se reemplaza pieza y se cierra fase a las 12:25 hrs. Verificación de zona y servicio con clientes OK.",estado:"completada",fuente:"SAT Costa",fecha:"02/06/2026"},
+];
+
+let acts = JSON.parse(localStorage.getItem('acts_v2')||'null') || INITIAL_ACTS;
+let nextId = Math.max(...acts.map(a=>a.id),0)+1;
+
+function save(){ localStorage.setItem('acts_v2',JSON.stringify(acts)); }
+
+function kpis(){
+  document.getElementById('k0').textContent=acts.length;
+  document.getElementById('k1').textContent=acts.filter(a=>a.estado==='completada').length;
+  document.getElementById('k2').textContent=acts.filter(a=>a.estado==='en-curso').length;
+  document.getElementById('k3').textContent=acts.filter(a=>a.estado==='alerta').length;
+}
+
+function estLabel(e){
+  if(e==='completada')return'<span class="est est-completada">✅ Completada</span>';
+  if(e==='alerta')return'<span class="est est-alerta">🚨 Alerta</span>';
+  return'<span class="est est-en-curso">🔄 En Curso</span>';
+}
+
+function renderActs(){
+  const el=document.getElementById('actList');
+  if(!acts.length){
+    el.innerHTML='<div class="empty"><div class="eico">📋</div>Sin actividades. Agrega desde el formulario.</div>';
+    kpis(); return;
+  }
+  el.innerHTML=acts.map(a=>`
+    <div class="act-item ${a.estado}">
+      <button class="act-del" onclick="delAct(${a.id})">✕</button>
+      <div class="at">
+        <span class="hora">🕐 ${a.hora}${a.fecha?' – '+a.fecha:''}</span>
+        <span class="cuad">${a.cuad}</span>
+        ${a.zona?`<span class="zona">📍 ${a.zona}</span>`:''}
+        ${estLabel(a.estado)}
+        <span class="src ${a.fuente==='SAT Costa'?'wsp-src-badge sat':'wsp-src-badge'}">📱 ${a.fuente}</span>
+      </div>
+      <div class="ad">${a.desc}</div>
+    </div>`).join('');
+  kpis();
+}
+
+function addAct(){
+  const cuad=document.getElementById('fCuad').value.trim();
+  const desc=document.getElementById('fDesc').value.trim();
+  if(!cuad||!desc){alert('Cuadrilla y descripción son obligatorios.');return;}
+  acts.unshift({
+    id:nextId++,
+    hora:document.getElementById('fHora').value,
+    cuad, zona:document.getElementById('fZona').value.trim(),
+    desc, estado:document.getElementById('fEst').value,
+    fuente:document.getElementById('fFuente').value,
+    fecha:new Date().toLocaleDateString('es-CL')
+  });
+  save(); renderActs();
+  document.getElementById('fDesc').value='';
+  document.getElementById('fCuad').value='';
+  document.getElementById('fZona').value='';
+}
+
+function delAct(id){
+  acts=acts.filter(a=>a.id!==id); save(); renderActs();
+}
+
+function saveNotas(){
+  localStorage.setItem('notas_sgm',document.getElementById('notas').value);
+  const b=document.querySelector('[onclick="saveNotas()"]');
+  b.textContent='✅ Guardado'; setTimeout(()=>b.textContent='💾 Guardar notas',2000);
+}
+
+// Turno
+function setTurno(n,h,btn){
+  document.getElementById('badgeTurno').textContent='TURNO '+n.toUpperCase();
+  document.querySelectorAll('.tbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  localStorage.setItem('turno',JSON.stringify({n,h}));
+}
+
+function syncWhatsApp(){
+  alert('Para sincronizar:\n1. Abre WhatsApp Web en Chrome\n2. Claude leerá los grupos SGM y Reporte SAT Costa_\n3. Las actividades nuevas se agregarán automáticamente al reporte.');
+}
+
+// Clock
+function tick(){
+  const d=new Date();
+  const ds=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const ms=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  document.getElementById('tsLabel').textContent=
+    `${ds[d.getDay()]} ${d.getDate()} ${ms[d.getMonth()]} ${d.getFullYear()} ${d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'})}`;
+}
+setInterval(tick,1000); tick();
+
+// Default hora
+document.getElementById('fHora').value=new Date().toTimeString().substring(0,5);
+document.getElementById('notas').value=localStorage.getItem('notas_sgm')||'';
+
+renderActs();
+</script>
+</body>
+</html>
