@@ -58,17 +58,22 @@ tr:hover td{background:#fbfcfd}
 .gal{grid-template-columns:repeat(auto-fill,minmax(205px,1fr));height:66vh}
 .gal img{height:190px}
 .panel{display:flex;flex-direction:column}
+.fct{font-weight:700;color:var(--txt);font-size:11px;line-height:1.2}
+.fcs{color:var(--mut);font-size:10px;margin-top:2px}
+.wttl{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.wttl select{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.6);border-radius:5px;font-size:11px;font-weight:700;padding:2px 6px;cursor:pointer}
+.wttl select option{color:#1f2a36}
 </style></head><body>
 <header><div class="hdrow"><div class="hleft"><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>04-06-2026 21:26</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>04-06-2026 17:36</b></div></div></div>
 <div class="kpis">
 <div class="kpi"><div class="n">71</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">13</div><div class="l">Mantenimiento</div></div>
 <div class="kpi"><div class="n" style="color:var(--sat)">58</div><div class="l">SAT Terreno</div></div>
 <div class="kpi"><div class="n">7</div><div class="l">Comunas</div></div>
 <div class="kpi"><div class="n">23</div><div class="l">Fotos</div></div>
-</div></div><div class="weather"><div class="wttl">Pronostico del tiempo &middot; Valparaiso (7 dias)</div><div class="wdays" id="wdays">Cargando pronostico...</div></div></div></header>
+</div></div><div class="weather"><div class="wttl"><span>Pronostico del tiempo &middot; 7 dias</span><select id="wcom"></select></div><div class="wdays" id="wdays">Cargando...</div></div></div></header>
 <div class="tabs"><div class="tab active" data-f="all">Todas</div><div class="tab" data-f="MANT">Mantenimiento</div><div class="tab" data-f="SAT">SAT Terreno</div><div class="tab" data-f="COM">Por Comuna</div></div>
 <input class="q" id="q" placeholder="Buscar actividad, tecnico, comuna, alimentador, PO...">
 <main id="main"></main>
@@ -92,7 +97,7 @@ function tableSat(rs){
 }
 function galHtml(ps,key){
  if(!ps.length)return '<div class="empty">Sin fotos.</div>';
- return '<div class="gal">'+ps.map((p)=>{const gi=window.__allps.indexOf(p);return '<figure onclick="zoom('+gi+')"><img loading="lazy" src="'+p.src+'"><figcaption>'+(p.actividad?esc(p.actividad)+'<br>':'')+(p.comuna?esc(p.comuna)+' &middot; ':'')+esc((p.dt||'').slice(5,16).replace('T',' '))+'</figcaption></figure>';}).join('')+'</div>';
+ return '<div class="gal">'+ps.map((p)=>{const gi=window.__allps.indexOf(p);return '<figure onclick="zoom('+gi+')"><img loading="lazy" src="'+p.src+'"><figcaption><div class="fct">'+esc(p.actividad||'Trabajo de terreno')+'</div><div class="fcs">'+(p.comuna?esc(p.comuna)+' &middot; ':'')+esc((p.dt||'').slice(5,16).replace('T',' '))+'</div></figcaption></figure>';}).join('')+'</div>';
 }
 function section(cat){
  const label=cat==='MANT'?'Mantenimiento':'SAT Terreno';
@@ -124,15 +129,19 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelect
 document.getElementById('q').oninput=e=>{q=e.target.value.toLowerCase();render();};
 render();
 
-(async()=>{
-  try{
-    const u="https://api.open-meteo.com/v1/forecast?latitude=-33.0458&longitude=-71.6197&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America/Santiago&forecast_days=7";
-    const j=await (await fetch(u)).json(); const d=j.daily;
-    const dias=["Dom","Lun","Mar","Mie","Jue","Vie","Sab"];
-    const ic=c=>c==0?"☀️":c<=2?"🌤️":c==3?"☁️":c<=48?"🌫️":c<=67?"🌧️":c<=77?"🌨️":c<=82?"🌧️":c<=99?"⛈️":"🌥️";
-    let h="";
-    for(let i=0;i<d.time.length;i++){const dt=new Date(d.time[i]+"T12:00:00");h+='<div class="wd"><div class="wn">'+dias[dt.getDay()]+'</div><div class="wi">'+ic(d.weather_code[i])+'</div><div class="wt">'+Math.round(d.temperature_2m_max[i])+'°<span>'+Math.round(d.temperature_2m_min[i])+'°</span></div></div>';}
-    document.getElementById("wdays").innerHTML=h;
-  }catch(e){document.getElementById("wdays").innerHTML='<span style="font-size:11px;color:var(--mut);padding:0 8px">Pronostico no disponible</span>';}
-})();
+
+const WCOMS={"Valparaiso":[-33.0458,-71.6197],"Vina del Mar":[-33.0245,-71.5518],"Concon":[-32.9220,-71.5180],"Quilpue":[-33.0478,-71.4419],"Villa Alemana":[-33.0423,-71.3735],"Quillota":[-32.8806,-71.2489],"La Calera":[-32.7868,-71.1947],"San Antonio":[-33.5928,-71.6066],"Quintero":[-32.7833,-71.5333],"Limache":[-33.0153,-71.2716],"Los Andes":[-32.8337,-70.5983],"San Felipe":[-32.7500,-70.7250],"La Ligua":[-32.4527,-71.2310]};
+async function loadW(){
+ var c=document.getElementById("wcom").value, ll=WCOMS[c]||WCOMS["Valparaiso"];
+ try{
+   var u="https://api.open-meteo.com/v1/forecast?latitude="+ll[0]+"&longitude="+ll[1]+"&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America/Santiago&forecast_days=7";
+   var j=await (await fetch(u)).json(), d=j.daily;
+   var dias=["Dom","Lun","Mar","Mie","Jue","Vie","Sab"];
+   var ic=function(x){return x==0?"☀️":x<=2?"🌤️":x==3?"☁️":x<=48?"🌫️":x<=67?"🌧️":x<=77?"🌨️":x<=82?"🌧️":x<=99?"⛈️":"🌥️";};
+   var h="";for(var i=0;i<d.time.length;i++){var dt=new Date(d.time[i]+"T12:00:00");h+='<div class="wd"><div class="wn">'+dias[dt.getDay()]+'</div><div class="wi">'+ic(d.weather_code[i])+'</div><div class="wt">'+Math.round(d.temperature_2m_max[i])+'°<span>'+Math.round(d.temperature_2m_min[i])+'°</span></div></div>';}
+   document.getElementById("wdays").innerHTML=h;
+ }catch(e){document.getElementById("wdays").innerHTML='<span style="font-size:11px;color:var(--mut);padding:0 8px">Pronostico no disponible</span>';}
+}
+(function(){var sel=document.getElementById("wcom");for(var k in WCOMS){var o=document.createElement("option");o.value=k;o.textContent=k;if(k==="Valparaiso")o.selected=true;sel.appendChild(o);}sel.onchange=loadW;loadW();})();
+
 </script></body></html>
