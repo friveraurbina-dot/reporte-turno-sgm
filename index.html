@@ -64,10 +64,18 @@ tr:hover td{background:#fbfcfd}
 .wttl select{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.6);border-radius:5px;font-size:11px;font-weight:700;padding:2px 6px;cursor:pointer}
 .wttl select option{color:#1f2a36}
 .det{min-width:210px;max-width:330px;white-space:normal;font-size:11px;color:#33414f;line-height:1.35}
-</style></head><body>
+.totrow{display:flex;gap:10px;padding:12px;flex-wrap:wrap}
+.totcard{flex:1;min-width:118px;border:1px solid var(--ln);border-top:3px solid var(--rojo);border-radius:9px;padding:8px 12px;text-align:center}
+.totcard .tn{font-size:22px;font-weight:800;color:var(--rojo)}
+.totcard .tl{font-size:10px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px}
+.panel .ph{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.xbtn{background:#fff;color:var(--rojo);border:0;border-radius:5px;font-size:11px;font-weight:800;padding:4px 11px;cursor:pointer}
+.xbtn:hover{background:#ffe9ec}
+tr.totsat td{font-weight:800;background:#fff5f5}
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script></head><body>
 <header><div class="hdrow"><div class="hleft"><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>04-06-2026 17:56</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>04-06-2026 18:04</b></div></div></div>
 <div class="kpis">
 <div class="kpi"><div class="n">71</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">13</div><div class="l">Mantenimiento</div></div>
@@ -100,13 +108,33 @@ function galHtml(ps,key){
  if(!ps.length)return '<div class="empty">Sin fotos.</div>';
  return '<div class="gal">'+ps.map((p)=>{const gi=window.__allps.indexOf(p);return '<figure onclick="zoom('+gi+')"><img loading="lazy" src="'+p.src+'"><figcaption><div class="fct">'+esc(p.actividad||'Trabajo de terreno')+'</div><div class="fcs">'+(p.comuna?esc(p.comuna)+' &middot; ':'')+esc((p.dt||'').slice(5,16).replace('T',' '))+'</div></figcaption></figure>';}).join('')+'</div>';
 }
+function satReports(){return REPORTS.filter(function(r){return r.cat==='SAT'&&qok(r);});}
+function satResumen(){
+ var rs=satReports(),dom=0,red=0,ele=0,by={};
+ rs.forEach(function(r){dom+=r.dom||0;red+=r.red||0;ele+=r.ele||0;var c=r.comuna||'Sin comuna';by[c]=by[c]||{n:0,dom:0,red:0,ele:0};by[c].n++;by[c].dom+=r.dom||0;by[c].red+=r.red||0;by[c].ele+=r.ele||0;});
+ var coms=Object.keys(by).sort(),rows=coms.map(function(c){return '<tr><td>'+esc(c)+'</td><td>'+by[c].n+'</td><td>'+by[c].dom+'</td><td>'+by[c].red+'</td><td>'+by[c].ele+'</td></tr>';}).join('');
+ return '<div class="panel"><div class="ph SAT"><span>Resumen SAT &middot; Totalizador de ordenes y actividades por comuna</span><button class="xbtn" onclick="exportSAT()">⬇ Exportar Excel</button></div>'+
+  '<div class="totrow"><div class="totcard"><div class="tn">'+rs.length+'</div><div class="tl">Actividades SAT</div></div>'+
+  '<div class="totcard"><div class="tn">'+dom+'</div><div class="tl">Ordenes DOM</div></div>'+
+  '<div class="totcard"><div class="tn">'+red+'</div><div class="tl">Ordenes RED</div></div>'+
+  '<div class="totcard"><div class="tn">'+ele+'</div><div class="tl">Ordenes ELE</div></div></div>'+
+  '<div class="tblwrap" style="height:auto;max-height:260px"><table><thead><tr><th>Comuna</th><th>Actividades</th><th>DOM</th><th>RED</th><th>ELE</th></tr></thead><tbody>'+rows+
+  '<tr class="totsat"><td>TOTAL</td><td>'+rs.length+'</td><td>'+dom+'</td><td>'+red+'</td><td>'+ele+'</td></tr></tbody></table></div></div>';
+}
+function exportSAT(){
+ var rs=satReports();
+ var data=rs.map(function(r){return {Fecha:(r.dt||'').replace('T',' '),Tipo:r.actividad,Causa:r.causa,Detalle:r.detalle,Comuna:r.comuna,PO:r.po,'Equipo/SED':r.equipo,DOM:(r.dom==null?'':r.dom),RED:(r.red==null?'':r.red),ELE:(r.ele==null?'':r.ele),Tecnicos:r.tec,Patente:r.pat};});
+ var fn='SAT_Terreno_'+new Date().toISOString().slice(0,10);
+ if(window.XLSX){var ws=XLSX.utils.json_to_sheet(data);var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'SAT Terreno');XLSX.writeFile(wb,fn+'.xlsx');}
+ else{var cols=Object.keys(data[0]||{Fecha:''});var csv='﻿'+cols.join(';')+'\n'+data.map(function(o){return cols.map(function(c){return '"'+String(o[c]==null?'':o[c]).replace(/"/g,'""')+'"';}).join(';');}).join('\n');var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=fn+'.csv';a.click();}
+}
 function section(cat){
  const label=cat==='MANT'?'Mantenimiento':'SAT Terreno';
  const rs=REPORTS.filter(r=>r.cat===cat&&qok(r));
  const ps=PHOTOS.filter(p=>p.cat===cat);
  const tbl=cat==='MANT'?tableMant(rs):tableSat(rs);
  return '<div class="sec"><div class="sechd"><span class="dot '+cat+'"></span><h2>'+label+'</h2><span class="cnt">'+rs.length+' actividades &middot; '+ps.length+' fotos</span></div>'+
- '<div class="split"><div class="panel"><div class="ph '+cat+'">Tabla ejecutiva '+label+'</div>'+tbl+'</div>'+
+ '+(cat==='SAT'?satResumen():'')+'<div class="split"><div class="panel"><div class="ph '+cat+'">Tabla ejecutiva '+label+'</div>'+tbl+'</div>'+
  '<div class="panel"><div class="ph '+cat+'">Galeria '+label+'</div>'+galHtml(ps,cat)+'</div></div></div>';
 }
 function render(){
