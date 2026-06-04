@@ -75,7 +75,7 @@ tr.totsat td{font-weight:800;background:#fff5f5}
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script></head><body>
 <header><div class="hdrow"><div class="hleft"><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>04-06-2026 18:04</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>04-06-2026 18:08</b></div></div></div>
 <div class="kpis">
 <div class="kpi"><div class="n">71</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">13</div><div class="l">Mantenimiento</div></div>
@@ -134,7 +134,7 @@ function section(cat){
  const ps=PHOTOS.filter(p=>p.cat===cat);
  const tbl=cat==='MANT'?tableMant(rs):tableSat(rs);
  return '<div class="sec"><div class="sechd"><span class="dot '+cat+'"></span><h2>'+label+'</h2><span class="cnt">'+rs.length+' actividades &middot; '+ps.length+' fotos</span></div>'+
- '+(cat==='SAT'?satResumen():'')+'<div class="split"><div class="panel"><div class="ph '+cat+'">Tabla ejecutiva '+label+'</div>'+tbl+'</div>'+
+ (cat==='SAT'?satResumen():'')+'<div class="split"><div class="panel"><div class="ph '+cat+'">Tabla ejecutiva '+label+'</div>'+tbl+'</div>'+
  '<div class="panel"><div class="ph '+cat+'">Galeria '+label+'</div>'+galHtml(ps,cat)+'</div></div></div>';
 }
 function render(){
