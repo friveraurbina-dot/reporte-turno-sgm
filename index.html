@@ -40,17 +40,34 @@ tr:hover td{background:#fbfcfd}
 .comgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:10px;padding:12px}
 .comcard{border:1px solid var(--ln);border-left:4px solid var(--rojo);border-radius:9px;padding:10px 12px}
 .comcard .cn{font-weight:700;font-size:13px}.comcard .cc{color:var(--mut);font-size:11px;margin-top:3px}
+
+.hdrow{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+.hleft{flex:1;min-width:0}
+.weather{border:1px solid var(--ln);border-radius:10px;background:#fff;overflow:hidden;min-width:430px;max-width:560px;margin-top:2px}
+.wttl{background:var(--rojo);color:#fff;font-size:11px;font-weight:700;padding:6px 11px;text-transform:uppercase;letter-spacing:.3px}
+.wdays{display:flex;padding:8px 6px}
+.wd{flex:1;text-align:center;padding:3px 4px;border-right:1px solid #eef2f5}
+.wd:last-child{border-right:0}
+.wn{font-size:10px;color:var(--mut);font-weight:700;text-transform:uppercase}
+.wi{font-size:21px;line-height:1.35}
+.wt{font-size:11.5px;font-weight:700}.wt span{color:var(--mut);font-weight:500;margin-left:3px}
+@media(max-width:1100px){.hdrow{flex-direction:column}.weather{min-width:0;width:100%}}
+.split{align-items:stretch}
+.tblwrap{height:66vh;overflow:auto}
+.gal{grid-template-columns:repeat(auto-fill,minmax(205px,1fr));height:66vh}
+.gal img{height:190px}
+.panel{display:flex;flex-direction:column}
 </style></head><body>
-<header><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
+<header><div class="hdrow"><div class="hleft"><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>04-06-2026 21:13</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>04-06-2026 21:22</b></div></div></div>
 <div class="kpis">
 <div class="kpi"><div class="n">71</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">13</div><div class="l">Mantenimiento</div></div>
 <div class="kpi"><div class="n" style="color:var(--sat)">58</div><div class="l">SAT Terreno</div></div>
 <div class="kpi"><div class="n">7</div><div class="l">Comunas</div></div>
 <div class="kpi"><div class="n">23</div><div class="l">Fotos</div></div>
-</div></header>
+</div></div><div class="weather"><div class="wttl">Pronostico del tiempo &middot; Valparaiso (7 dias)</div><div class="wdays" id="wdays">Cargando pronostico...</div></div></div></header>
 <div class="tabs"><div class="tab active" data-f="all">Todas</div><div class="tab" data-f="MANT">Mantenimiento</div><div class="tab" data-f="SAT">SAT Terreno</div><div class="tab" data-f="COM">Por Comuna</div></div>
 <input class="q" id="q" placeholder="Buscar actividad, tecnico, comuna, alimentador, PO...">
 <main id="main"></main>
@@ -105,4 +122,16 @@ document.getElementById('lb').onclick=function(){this.style.display='none';};
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');render();});
 document.getElementById('q').oninput=e=>{q=e.target.value.toLowerCase();render();};
 render();
+
+(async()=>{
+  try{
+    const u="https://api.open-meteo.com/v1/forecast?latitude=-33.0458&longitude=-71.6197&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=America/Santiago&forecast_days=7";
+    const j=await (await fetch(u)).json(); const d=j.daily;
+    const dias=["Dom","Lun","Mar","Mie","Jue","Vie","Sab"];
+    const ic=c=>c==0?"☀️":c<=2?"🌤️":c==3?"☁️":c<=48?"🌫️":c<=67?"🌧️":c<=77?"🌨️":c<=82?"🌧️":c<=99?"⛈️":"🌥️";
+    let h="";
+    for(let i=0;i<d.time.length;i++){const dt=new Date(d.time[i]+"T12:00:00");h+='<div class="wd"><div class="wn">'+dias[dt.getDay()]+'</div><div class="wi">'+ic(d.weather_code[i])+'</div><div class="wt">'+Math.round(d.temperature_2m_max[i])+'°<span>'+Math.round(d.temperature_2m_min[i])+'°</span></div></div>';}
+    document.getElementById("wdays").innerHTML=h;
+  }catch(e){document.getElementById("wdays").innerHTML='<span style="font-size:11px;color:var(--mut);padding:0 8px">Pronostico no disponible</span>';}
+})();
 </script></body></html>
