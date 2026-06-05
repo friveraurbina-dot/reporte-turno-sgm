@@ -81,25 +81,26 @@ tr.totsat td{font-weight:800;background:#fff5f5}
 .kpibar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
 .dayf{font-size:12px;font-weight:700;color:var(--txt)}
 .dayf select{border:1px solid var(--ln);border-radius:6px;padding:5px 9px;font-size:12px;font-weight:700;color:var(--txt);background:#fff;cursor:pointer}
-.hdtop{display:flex;justify-content:space-between;align-items:center;gap:22px}
-.kpis{display:flex;gap:12px;margin-top:13px;flex-wrap:wrap}
+header{padding-top:10px;padding-bottom:16px}
+.hdbody{display:flex;justify-content:space-between;align-items:center;gap:22px;margin-top:16px}
+.kpis{flex:1;display:flex;gap:12px;flex-wrap:wrap;margin-top:0}
 .kpi{flex:1 1 0;min-width:118px}
-h1{font-size:20px;letter-spacing:.2px}
+h1{font-size:21px;letter-spacing:.2px}
 .logo{width:42px;height:42px;font-size:17px;box-shadow:0 2px 6px rgba(226,0,26,.25)}
-.weather{margin-top:0}
-@media(max-width:1050px){.hdtop{flex-direction:column;align-items:stretch}.weather{min-width:0;width:100%}.kpi{min-width:100px}}
+.weather{margin-top:0;flex:0 0 auto}
+@media(max-width:1050px){.hdbody{flex-direction:column;align-items:stretch}.weather{min-width:0;width:100%}.kpi{min-width:100px}}
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script></head><body>
-<header><div class="hdtop"><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
+<header><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 10:15</b></div></div></div>
-<div class="weather"><div class="wttl"><span>Pronostico del tiempo &middot; 7 dias</span><select id="wcom"></select></div><div class="wdays" id="wdays">Cargando...</div></div></div>
-<div class="kpis">
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 10:22</b></div></div></div>
+<div class="hdbody"><div class="kpis">
 <div class="kpi"><div class="n">91</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">13</div><div class="l">Mantenimiento</div></div>
 <div class="kpi"><div class="n" style="color:var(--sat)">78</div><div class="l">SAT Terreno</div></div>
 <div class="kpi"><div class="n">11</div><div class="l">Comunas</div></div>
 <div class="kpi"><div class="n">26</div><div class="l">Fotos</div></div>
-</div></header>
+</div>
+<div class="weather"><div class="wttl"><span>Pronostico del tiempo &middot; 7 dias</span><select id="wcom"></select></div><div class="wdays" id="wdays">Cargando...</div></div></div></header>
 <div class="tabs"><div class="tab active" data-f="all">Todas</div><div class="tab" data-f="MANT">Mantenimiento</div><div class="tab" data-f="SAT">SAT Terreno</div><div class="tab" data-f="KPI">KPI - Datos</div></div>
 <input class="q" id="q" placeholder="Buscar actividad, tecnico, comuna, alimentador, PO...">
 <main id="main"></main>
