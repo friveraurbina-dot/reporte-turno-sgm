@@ -78,7 +78,7 @@ tr.totsat td{font-weight:800;background:#fff5f5}
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script></head><body>
 <header><div class="hdrow"><div class="hleft"><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 09:27</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 09:30</b></div></div></div>
 <div class="kpis">
 <div class="kpi"><div class="n">91</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">13</div><div class="l">Mantenimiento</div></div>
@@ -121,7 +121,7 @@ function satResumen(){
   '<div class="totcard"><div class="tn">'+dom+'</div><div class="tl">Ordenes DOM</div></div>'+
   '<div class="totcard"><div class="tn">'+red+'</div><div class="tl">Ordenes RED</div></div>'+
   '<div class="totcard"><div class="tn">'+ele+'</div><div class="tl">Ordenes ELE</div></div></div>'+
-  '<div class="tblwrap" style="height:auto;max-height:260px"><table><thead><tr><th>'+(satZona===\'all\'?\'Zona\':\'Comuna\')+'</th><th>Actividades</th><th>DOM</th><th>RED</th><th>ELE</th></tr></thead><tbody>'+rows+
+  '<div class="tblwrap" style="height:auto;max-height:260px"><table><thead><tr><th>'+(satZona==='all'?'Zona':'Comuna')+'</th><th>Actividades</th><th>DOM</th><th>RED</th><th>ELE</th></tr></thead><tbody>'+rows+
   '<tr class="totsat"><td>TOTAL</td><td>'+rs.length+'</td><td>'+dom+'</td><td>'+red+'</td><td>'+ele+'</td></tr></tbody></table></div></div>';
 }
 function exportSAT(){
