@@ -95,7 +95,7 @@ h1{font-size:21px;letter-spacing:.2px}
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script></head><body>
 <header><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 10:39</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 10:42</b></div></div></div>
 <div class="hdbody"><div class="kpis">
 <div class="kpi"><div class="n">91</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">13</div><div class="l">Mantenimiento</div></div>
@@ -176,8 +176,8 @@ function comunaPanel(rs){
  var by={},dom=0,red=0,ele=0;
  rs.forEach(function(r){var c=r.comuna||'Sin comuna';by[c]=by[c]||{n:0,dom:0,red:0,ele:0};by[c].n++;by[c].dom+=r.dom||0;by[c].red+=r.red||0;by[c].ele+=r.ele||0;dom+=r.dom||0;red+=r.red||0;ele+=r.ele||0;});
  var ks=Object.keys(by).sort();
- var rows=ks.map(function(c){return '<tr><td>'+esc(c)+'</td><td>'+by[c].n+'</td><td>'+by[c].dom+'</td><td>'+by[c].red+'</td><td>'+by[c].ele+'</td></tr>';}).join('');
- return '<div class="panel"><div class="ph SAT"><span>Actividades y ordenes por comuna</span></div><div class="tblwrap" style="height:auto;max-height:300px"><table><thead><tr><th>Comuna</th><th>Actividades</th><th>DOM</th><th>RED</th><th>ELE</th></tr></thead><tbody>'+rows+'<tr class="totsat"><td>TOTAL</td><td>'+rs.length+'</td><td>'+dom+'</td><td>'+red+'</td><td>'+ele+'</td></tr></tbody></table></div></div>';
+ var rows=ks.map(function(c){var o=by[c];return '<tr><td>'+esc(c)+'</td><td>'+o.n+'</td><td>'+o.dom+'</td><td>'+o.red+'</td><td>'+o.ele+'</td><td><b>'+(o.dom+o.red+o.ele)+'</b></td></tr>';}).join('');
+ return '<div class="panel"><div class="ph SAT"><span>Actividades y ordenes por comuna</span></div><div class="tblwrap" style="height:auto;max-height:300px"><table><thead><tr><th>Comuna</th><th>Actividades</th><th>DOM</th><th>RED</th><th>ELE</th><th>Total Ord.</th></tr></thead><tbody>'+rows+'<tr class="totsat"><td>TOTAL</td><td>'+rs.length+'</td><td>'+dom+'</td><td>'+red+'</td><td>'+ele+'</td><td>'+(dom+red+ele)+'</td></tr></tbody></table></div></div>';
 }
 function comunaCards(){
  var by={}; REPORTS.filter(qok).forEach(function(r){var c=r.comuna||'Sin comuna';by[c]=by[c]||{n:0,mant:0,sat:0};by[c].n++;by[c][r.cat==='MANT'?'mant':'sat']++;});
