@@ -75,10 +75,10 @@ tr.totsat td{font-weight:800;background:#fff5f5}
 .zchips{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 12px}
 .zchip{background:#fff;border:1px solid var(--ln);border-radius:18px;padding:5px 13px;font-size:12px;cursor:pointer;font-weight:600;color:var(--txt)}
 .zchip.on{background:var(--rojo);color:#fff;border-color:var(--rojo)}
-</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script></head><body>
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script></head><body>
 <header><div class="hdrow"><div class="hleft"><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 09:30</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 09:43</b></div></div></div>
 <div class="kpis">
 <div class="kpi"><div class="n">91</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">13</div><div class="l">Mantenimiento</div></div>
@@ -86,7 +86,7 @@ tr.totsat td{font-weight:800;background:#fff5f5}
 <div class="kpi"><div class="n">11</div><div class="l">Comunas</div></div>
 <div class="kpi"><div class="n">26</div><div class="l">Fotos</div></div>
 </div></div><div class="weather"><div class="wttl"><span>Pronostico del tiempo &middot; 7 dias</span><select id="wcom"></select></div><div class="wdays" id="wdays">Cargando...</div></div></div></header>
-<div class="tabs"><div class="tab active" data-f="all">Todas</div><div class="tab" data-f="MANT">Mantenimiento</div><div class="tab" data-f="SAT">SAT Terreno</div><div class="tab" data-f="COM">Por Comuna</div></div>
+<div class="tabs"><div class="tab active" data-f="all">Todas</div><div class="tab" data-f="MANT">Mantenimiento</div><div class="tab" data-f="SAT">SAT Terreno</div><div class="tab" data-f="KPI">KPI - Datos</div><div class="tab" data-f="COM">Por Comuna</div></div>
 <input class="q" id="q" placeholder="Buscar actividad, tecnico, comuna, alimentador, PO...">
 <main id="main"></main>
 <div id="lb"><img src=""><div class="cap"></div></div>
@@ -142,13 +142,27 @@ function section(cat){
  const ps=PHOTOS.filter(p=>p.cat===cat&&(cat!=='SAT'||satZona==='all'||p.zona_grp===satZona));
  const tbl=cat==='MANT'?tableMant(rs):tableSat(rs);
  return '<div class="sec"><div class="sechd"><span class="dot '+cat+'"></span><h2>'+label+'</h2><span class="cnt">'+rs.length+' actividades &middot; '+ps.length+' fotos</span></div>'+
- (cat==='SAT'?zonaChips()+satResumen():'')+'<div class="split"><div class="panel"><div class="ph '+cat+'">Tabla ejecutiva '+label+'</div>'+tbl+'</div>'+
+ (cat==='SAT'?zonaChips():'')+'<div class="split"><div class="panel"><div class="ph '+cat+'">Tabla ejecutiva '+label+'</div>'+tbl+'</div>'+
  '<div class="panel"><div class="ph '+cat+'">Galeria '+label+'</div>'+galHtml(ps,cat)+'</div></div></div>';
+}
+function drawKpiChart(rs){
+ if(!window.Chart) return;
+ var by={};
+ rs.forEach(function(r){var k=(satZona==='all')?(r.zona_grp||'Sin zona'):(r.actividad||'Otros');by[k]=(by[k]||0)+1;});
+ var labels=Object.keys(by).sort(function(a,b){return by[b]-by[a];}), vals=labels.map(function(l){return by[l];});
+ var cv=document.getElementById('kpichart'); if(!cv) return;
+ if(window.__kpic){window.__kpic.destroy();}
+ window.__kpic=new Chart(cv,{type:'bar',data:{labels:labels,datasets:[{label:'Actividades',data:vals,backgroundColor:'#E2001A',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},title:{display:true,text:(satZona==='all'?'Actividades SAT por zona':'Actividades por tipo - '+satZona),color:'#1f2a36',font:{size:13,weight:'700'}}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
 }
 function render(){
  window.__allps=PHOTOS;
  const m=document.getElementById('main');
  const f=document.querySelector('.tab.active').dataset.f;
+ if(f==='KPI'){
+   m.innerHTML='<div class="sec"><div class="sechd"><span class="dot SAT"></span><h2>KPI - Datos (SAT Terreno)</h2><span class="cnt">Resumen ejecutivo, grafico y exportacion</span></div>'+zonaChips()+'<div class="panel"><div class="ph SAT"><span>Grafico ejecutivo de actividades</span></div><div style="padding:16px 18px;height:300px"><canvas id="kpichart"></canvas></div></div><div style="height:14px"></div>'+satResumen()+'</div>';
+   drawKpiChart(satReports());
+   return;
+ }
  if(f==='COM'){
    const by={}; REPORTS.filter(qok).forEach(r=>{const c=r.comuna||'Sin comuna';by[c]=by[c]||{n:0,mant:0,sat:0};by[c].n++;by[c][r.cat==='MANT'?'mant':'sat']++;});
    const com=Object.keys(by).sort();
