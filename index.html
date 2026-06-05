@@ -84,7 +84,7 @@ tr.totsat td{font-weight:800;background:#fff5f5}
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script></head><body>
 <header><div class="hdrow"><div class="hleft"><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 09:52</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 09:59</b></div></div></div>
 <div class="kpis">
 <div class="kpi"><div class="n">91</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">13</div><div class="l">Mantenimiento</div></div>
@@ -92,7 +92,7 @@ tr.totsat td{font-weight:800;background:#fff5f5}
 <div class="kpi"><div class="n">11</div><div class="l">Comunas</div></div>
 <div class="kpi"><div class="n">26</div><div class="l">Fotos</div></div>
 </div></div><div class="weather"><div class="wttl"><span>Pronostico del tiempo &middot; 7 dias</span><select id="wcom"></select></div><div class="wdays" id="wdays">Cargando...</div></div></div></header>
-<div class="tabs"><div class="tab active" data-f="all">Todas</div><div class="tab" data-f="MANT">Mantenimiento</div><div class="tab" data-f="SAT">SAT Terreno</div><div class="tab" data-f="KPI">KPI - Datos</div><div class="tab" data-f="COM">Por Comuna</div></div>
+<div class="tabs"><div class="tab active" data-f="all">Todas</div><div class="tab" data-f="MANT">Mantenimiento</div><div class="tab" data-f="SAT">SAT Terreno</div><div class="tab" data-f="KPI">KPI - Datos</div></div>
 <input class="q" id="q" placeholder="Buscar actividad, tecnico, comuna, alimentador, PO...">
 <main id="main"></main>
 <div id="lb"><img src=""><div class="cap"></div></div>
@@ -167,13 +167,20 @@ function comunaPanel(rs){
  var rows=ks.map(function(c){return '<tr><td>'+esc(c)+'</td><td>'+by[c].n+'</td><td>'+by[c].dom+'</td><td>'+by[c].red+'</td><td>'+by[c].ele+'</td></tr>';}).join('');
  return '<div class="panel"><div class="ph SAT"><span>Actividades y ordenes por comuna</span></div><div class="tblwrap" style="height:auto;max-height:300px"><table><thead><tr><th>Comuna</th><th>Actividades</th><th>DOM</th><th>RED</th><th>ELE</th></tr></thead><tbody>'+rows+'<tr class="totsat"><td>TOTAL</td><td>'+rs.length+'</td><td>'+dom+'</td><td>'+red+'</td><td>'+ele+'</td></tr></tbody></table></div></div>';
 }
+function comunaCards(){
+ var by={}; REPORTS.filter(qok).forEach(function(r){var c=r.comuna||'Sin comuna';by[c]=by[c]||{n:0,mant:0,sat:0};by[c].n++;by[c][r.cat==='MANT'?'mant':'sat']++;});
+ var com=Object.keys(by).sort();
+ return '<div class="panel"><div class="ph SAT"><span>Actividades por comuna (Mantenimiento + SAT)</span></div><div class="comgrid">'+com.map(function(c){return '<div class="comcard"><div class="cn">'+esc(c)+'</div><div class="cc">'+by[c].n+' actividades &middot; Mant '+by[c].mant+' / SAT '+by[c].sat+'</div></div>';}).join('')+'</div></div>';
+}
 function drawDoughnut(rs){
  if(!window.Chart) return;
  var by={};rs.forEach(function(r){var k=r.zona_grp||'Sin zona';by[k]=(by[k]||0)+1;});
  var labels=Object.keys(by),vals=labels.map(function(l){return by[l];});
+ var tot=vals.reduce(function(a,b){return a+b;},0);
  var cv=document.getElementById('kpidough');if(!cv)return;
  if(window.__d1)window.__d1.destroy();
- window.__d1=new Chart(cv,{type:'doughnut',data:{labels:labels,datasets:[{data:vals,backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}}}}});
+ var center={id:'ct',afterDraw:function(c){var a=c.chartArea;if(!a)return;var ctx=c.ctx;ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';var x=(a.left+a.right)/2,y=(a.top+a.bottom)/2;ctx.font='800 24px Segoe UI';ctx.fillStyle='#E2001A';ctx.fillText(tot,x,y-7);ctx.font='700 9px Segoe UI';ctx.fillStyle='#6b7b8c';ctx.fillText('ACTIVIDADES',x,y+12);ctx.restore();}};
+ window.__d1=new Chart(cv,{type:'doughnut',data:{labels:labels,datasets:[{data:vals,backgroundColor:PAL,borderWidth:3,borderColor:'#fff',hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11},padding:10,usePointStyle:true}},tooltip:{callbacks:{label:function(it){var v=it.parsed,pc=tot?Math.round(v*100/tot):0;return ' '+it.label+': '+v+' ('+pc+'%)';}}}}},plugins:[center]});
 }
 function drawLine(){
  if(!window.Chart) return;
@@ -182,7 +189,8 @@ function drawLine(){
  var labels=ds.map(function(d){var pp=d.split('-');return pp[2]+'-'+pp[1];}),vals=ds.map(function(d){return by[d];});
  var cv=document.getElementById('kpiline');if(!cv)return;
  if(window.__d2)window.__d2.destroy();
- window.__d2=new Chart(cv,{type:'line',data:{labels:labels,datasets:[{label:'Actividades',data:vals,borderColor:'#E2001A',backgroundColor:'rgba(226,0,26,.12)',fill:true,tension:.35,pointBackgroundColor:'#E2001A',pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+ var ctx=cv.getContext('2d');var g=ctx.createLinearGradient(0,0,0,260);g.addColorStop(0,'rgba(226,0,26,.38)');g.addColorStop(1,'rgba(226,0,26,0)');
+ window.__d2=new Chart(cv,{type:'line',data:{labels:labels,datasets:[{label:'Actividades',data:vals,borderColor:'#E2001A',borderWidth:3,backgroundColor:g,fill:true,tension:.4,pointBackgroundColor:'#fff',pointBorderColor:'#E2001A',pointBorderWidth:2,pointRadius:5,pointHoverRadius:7}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#eef2f5'}},x:{grid:{display:false}}}}});
 }
 function render(){
  window.__allps=PHOTOS;
@@ -195,7 +203,7 @@ function render(){
     '<div class="chartrow"><div class="panel"><div class="ph SAT"><span>Distribucion de actividades por zona</span></div><div class="chbox"><canvas id="kpidough"></canvas></div></div>'+
     '<div class="panel"><div class="ph SAT"><span>Actividades SAT por dia</span></div><div class="chbox"><canvas id="kpiline"></canvas></div></div></div>'+
     '<div style="height:14px"></div>'+satResumen()+
-    '<div style="height:14px"></div>'+comunaPanel(rs)+'</div>';
+    '<div style="height:14px"></div>'+comunaPanel(rs)+'<div style="height:14px"></div>'+comunaCards()+'</div>';
    drawDoughnut(rs); drawLine();
    return;
  }
