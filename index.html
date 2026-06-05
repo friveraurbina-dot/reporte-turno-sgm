@@ -89,10 +89,13 @@ h1{font-size:21px;letter-spacing:.2px}
 .logo{width:42px;height:42px;font-size:17px;box-shadow:0 2px 6px rgba(226,0,26,.25)}
 .weather{margin-top:0;flex:0 0 auto}
 @media(max-width:1050px){.hdbody{flex-direction:column;align-items:stretch}.weather{min-width:0;width:100%}.kpi{min-width:100px}}
+.ph .phright{display:flex;align-items:center;gap:10px}
+.ph .dayf{color:#fff}
+.ph .dayf select{background:rgba(255,255,255,.92)}
 </style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script></head><body>
 <header><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 10:22</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>05-06-2026 10:39</b></div></div></div>
 <div class="hdbody"><div class="kpis">
 <div class="kpi"><div class="n">91</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">13</div><div class="l">Mantenimiento</div></div>
@@ -130,14 +133,14 @@ function satReports(){return REPORTS.filter(function(r){return r.cat==='SAT'&&qo
 function satResumen(){
  var rs=satReports(),dom=0,red=0,ele=0,by={};
  rs.forEach(function(r){dom+=r.dom||0;red+=r.red||0;ele+=r.ele||0;var c=(r.zona_grp||'Sin zona');by[c]=by[c]||{n:0,dom:0,red:0,ele:0};by[c].n++;by[c].dom+=r.dom||0;by[c].red+=r.red||0;by[c].ele+=r.ele||0;});
- var coms=Object.keys(by).sort(),rows=coms.map(function(c){return '<tr><td>'+esc(c)+'</td><td>'+by[c].n+'</td><td>'+by[c].dom+'</td><td>'+by[c].red+'</td><td>'+by[c].ele+'</td></tr>';}).join('');
- return '<div class="panel"><div class="ph SAT"><span>Resumen SAT &middot; Totalizador de ordenes y actividades por comuna</span><button class="xbtn" onclick="exportSAT()">⬇ Exportar Excel</button></div>'+
+ var coms=Object.keys(by).sort(),rows=coms.map(function(c){var o=by[c];return '<tr><td>'+esc(c)+'</td><td>'+o.n+'</td><td>'+o.dom+'</td><td>'+o.red+'</td><td>'+o.ele+'</td><td><b>'+(o.dom+o.red+o.ele)+'</b></td></tr>';}).join('');
+ return '<div class="panel"><div class="ph SAT"><span>Resumen SAT &middot; Totalizador de ordenes y actividades</span><span class="phright">'+dayFilterHtml()+'<button class="xbtn" onclick="exportSAT()">⬇ Exportar Excel</button></span></div>'+
   '<div class="totrow"><div class="totcard"><div class="tn">'+rs.length+'</div><div class="tl">Actividades SAT</div></div>'+
   '<div class="totcard"><div class="tn">'+dom+'</div><div class="tl">Ordenes DOM</div></div>'+
   '<div class="totcard"><div class="tn">'+red+'</div><div class="tl">Ordenes RED</div></div>'+
-  '<div class="totcard"><div class="tn">'+ele+'</div><div class="tl">Ordenes ELE</div></div></div>'+
-  '<div class="tblwrap" style="height:auto;max-height:260px"><table><thead><tr><th>Zona</th><th>Actividades</th><th>DOM</th><th>RED</th><th>ELE</th></tr></thead><tbody>'+rows+
-  '<tr class="totsat"><td>TOTAL</td><td>'+rs.length+'</td><td>'+dom+'</td><td>'+red+'</td><td>'+ele+'</td></tr></tbody></table></div></div>';
+  '<div class="totcard"><div class="tn">'+ele+'</div><div class="tl">Ordenes ELE</div></div>'+'<div class="totcard" style="border-top-color:#1f2a36"><div class="tn" style="color:#1f2a36">'+(dom+red+ele)+'</div><div class="tl">Total Ordenes</div></div></div>'+
+  '<div class="tblwrap" style="height:auto;max-height:260px"><table><thead><tr><th>Zona</th><th>Actividades</th><th>DOM</th><th>RED</th><th>ELE</th><th>Total Ord.</th></tr></thead><tbody>'+rows+
+  '<tr class="totsat"><td>TOTAL</td><td>'+rs.length+'</td><td>'+dom+'</td><td>'+red+'</td><td>'+ele+'</td><td>'+(dom+red+ele)+'</td></tr></tbody></table></div></div>';
 }
 function exportSAT(){
  var rs=satReports();
