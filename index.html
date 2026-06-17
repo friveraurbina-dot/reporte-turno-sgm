@@ -95,7 +95,7 @@ h1{font-size:21px;letter-spacing:.2px}
 .ph.RREE,.ph.ED,.ph.PROT,.ph.EMP,.ph.VEG{background:var(--rojo)}
 .dot.RREE,.dot.ED,.dot.PROT,.dot.EMP,.dot.VEG{background:var(--rojo)}
 .gal{grid-auto-rows:max-content}
-</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script><meta name="sgm-build" content="20260617151002"><style id="zonakpi-css">
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script><meta name="sgm-build" content="20260617151635"><style id="zonakpi-css">
 .ztbl{width:100%;border-collapse:collapse;font-size:13px}
 .ztbl th,.ztbl td{padding:9px 12px;text-align:center;border-bottom:1px solid var(--ln)}
 .ztbl th{background:#faf2f3;color:var(--txt);font-weight:700;font-size:12px}
@@ -355,12 +355,14 @@ async function loadW(){
 })();
 
 </script><script>
-/* ZONA_KPI_V2 - Matriz Zona x Categoria + filtro fecha + dona ejecutiva */
+/* ZONA_KPI_V3 - Matriz Zona x Categoria + SAT + filtro fecha + dona */
 (function(){
   function p2(n){return (n<10?'0':'')+n;}
   function norm(s){return (s==null?'':String(s)).toLowerCase().trim();}
   var ZMAP=[['aconcagua','Aconcagua'],['quillota','Quillota'],['marga','Marga Marga'],['san antonio','San Antonio'],['los andes','Los Andes'],[' andes','Los Andes'],['valpara','Valparaíso'],['valpo','Valparaíso'],['costa','Costa']];
   function mz(v){v=norm(v); if(!v) return null; for(var i=0;i<ZMAP.length;i++){ if(v.indexOf(ZMAP[i][0])>=0) return ZMAP[i][1]; } return null;}
+  var C2Z={'vina del mar':'Valparaíso','viña del mar':'Valparaíso','concon':'Valparaíso','con con':'Valparaíso','casablanca':'Valparaíso','quilpue':'Marga Marga','villa alemana':'Marga Marga','limache':'Marga Marga','olmue':'Marga Marga','la calera':'Quillota','calera':'Quillota','la cruz':'Quillota','nogales':'Quillota','hijuelas':'Quillota','quintero':'Quillota','puchuncavi':'Quillota','el melon':'Quillota','san felipe':'Aconcagua','putaendo':'Aconcagua','catemu':'Aconcagua','llaillay':'Aconcagua','llay llay':'Aconcagua','panquehue':'Aconcagua','santa maria':'Aconcagua','rinconada':'Aconcagua','calle larga':'Aconcagua','san esteban':'Los Andes','cartagena':'San Antonio','el tabo':'San Antonio','el quisco':'San Antonio','algarrobo':'San Antonio','santo domingo':'San Antonio'};
+  function comz(v){v=norm(v); if(!v) return null; for(var k in C2Z){ if(v.indexOf(k)>=0) return C2Z[k]; } return null;}
   function satZone(r){ var z=String(r.zona_grp||'').replace(/^\s*sat\s*/i,'').trim(); var zl=z.toLowerCase();
     if(zl.indexOf('costa')>=0 && zl.indexOf('marga')>=0) return 'Costa - Marga Marga';
     if(zl.indexOf('valpara')>=0||zl.indexOf('valpo')>=0) return 'Valparaíso';
@@ -368,7 +370,10 @@ async function loadW(){
     if(zl.indexOf('aconcagua')>=0) return 'Aconcagua';
     if(zl.indexOf('san antonio')>=0) return 'San Antonio';
     return z||'Sin zona'; }
-  function zoneOf(r){ return r.cat==='SAT' ? satZone(r) : (mz(r.zona)||mz(r.comuna)||mz(r.zona_grp)||'Sin zona'); }
+  function zoneOf(r){ if(r.cat==='SAT') return satZone(r);
+    var fs=['zona','comuna','zona_grp','alim','resumen','raw','detalle'];
+    for(var i=0;i<fs.length;i++){ var v=r[fs[i]]; var z=mz(v)||comz(v); if(z) return z; }
+    return 'Sin zona'; }
   var CATS=[['MANT','Mantenimiento'],['SAT','SAT Terreno'],['RREE','Trabajos RREE'],['ED','Clientes ED'],['PROT','Protecciones Dx'],['EMP','Empalmes'],['VEG','Manejo Vegetacion']];
   var CCOL={MANT:'#E2001A',SAT:'#8a0010',RREE:'#f0857d',ED:'#6b7b8c',PROT:'#1f2a36',EMP:'#f4a300',VEG:'#2e8b57'};
   var ZORDER=['Valparaíso','Costa','Quillota','Marga Marga','Costa - Marga Marga','Aconcagua','San Antonio','Los Andes','Sin zona'];
