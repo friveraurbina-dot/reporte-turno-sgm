@@ -95,7 +95,16 @@ h1{font-size:21px;letter-spacing:.2px}
 .ph.RREE,.ph.ED,.ph.PROT,.ph.EMP,.ph.VEG{background:var(--rojo)}
 .dot.RREE,.dot.ED,.dot.PROT,.dot.EMP,.dot.VEG{background:var(--rojo)}
 .gal{grid-auto-rows:max-content}
-</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script><meta name="sgm-build" content="20260617135916"></head><body>
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script><meta name="sgm-build" content="20260617135916"><style id="zonakpi-css">
+.ztbl{width:100%;border-collapse:collapse;font-size:13px}
+.ztbl th,.ztbl td{padding:9px 12px;text-align:center;border-bottom:1px solid var(--ln)}
+.ztbl th{background:#faf2f3;color:var(--txt);font-weight:700;font-size:12px}
+.ztbl td.zn{text-align:left;font-weight:600;color:var(--txt)}
+.ztbl td.zt{font-weight:700;color:var(--rojo)}
+.ztbl tbody tr:hover{background:#fafbfc}
+.ztbl tfoot td{font-weight:700;background:#f4f6f8;border-top:2px solid var(--rojo)}
+.ztbl .z0{color:#cdd5dd}
+</style></head><body>
 <header><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
 <div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>17-06-2026 09:55</b></div></div></div>
@@ -335,4 +344,54 @@ async function loadW(){
   }catch(e){}
 })();
 
+</script><script>
+/* ZONA_KPI_V1 - Matriz Zona x Categoria en la pestania KPI */
+(function(){
+  function norm(s){return (s==null?'':String(s)).toLowerCase().trim();}
+  var ZMAP=[['aconcagua','Aconcagua'],['quillota','Quillota'],['marga','Marga Marga'],['san antonio','San Antonio'],['los andes','Los Andes'],[' andes','Los Andes'],['valpara','Valparaíso'],['valpo','Valparaíso'],['costa','Costa']];
+  function mz(v){v=norm(v); if(!v) return null; for(var i=0;i<ZMAP.length;i++){ if(v.indexOf(ZMAP[i][0])>=0) return ZMAP[i][1]; } return null;}
+  function zoneOf(r){ return mz(r.zona)||mz(r.comuna)||mz(r.zona_grp)||'Sin zona'; }
+  var CATS=[['MANT','Mantenimiento'],['RREE','Trabajos RREE'],['ED','Clientes ED'],['PROT','Protecciones Dx'],['EMP','Empalmes'],['VEG','Manejo Vegetacion']];
+  var ZORDER=['Valparaíso','Costa','Quillota','Marga Marga','Aconcagua','San Antonio','Los Andes','Sin zona'];
+  function build(){
+    if(typeof REPORTS==='undefined') return '';
+    var iscat={}; CATS.forEach(function(c){iscat[c[0]]=1;});
+    var M={}, ztot={}, ctot={}, grand=0;
+    REPORTS.forEach(function(r){
+      if(!iscat[r.cat]) return;
+      var z=zoneOf(r);
+      M[z]=M[z]||{}; M[z][r.cat]=(M[z][r.cat]||0)+1;
+      ztot[z]=(ztot[z]||0)+1; ctot[r.cat]=(ctot[r.cat]||0)+1; grand++;
+    });
+    var zonas=ZORDER.filter(function(z){return ztot[z];});
+    Object.keys(ztot).forEach(function(z){ if(zonas.indexOf(z)<0) zonas.push(z); });
+    var h='<div class="sec" id="zonakpi"><div class="sechd"><span class="dot SAT"></span><h2>Actividades por Zona</h2><span class="cnt">'+grand+' actividades &middot; Mantenimiento, RREE, Clientes ED, Protecciones, Empalmes, Vegetacion</span></div>';
+    h+='<div class="panel" style="padding:0;overflow:auto"><table class="ztbl"><thead><tr><th style="text-align:left">Zona</th>';
+    CATS.forEach(function(c){h+='<th>'+c[1]+'</th>';}); h+='<th>Total</th></tr></thead><tbody>';
+    zonas.forEach(function(z){
+      h+='<tr><td class="zn">'+z+'</td>';
+      CATS.forEach(function(c){var v=(M[z]&&M[z][c[0]])||0; h+='<td>'+(v?v:'<span class="z0">&middot;</span>')+'</td>';});
+      h+='<td class="zt">'+ztot[z]+'</td></tr>';
+    });
+    h+='</tbody><tfoot><tr><td style="text-align:left">Total</td>';
+    CATS.forEach(function(c){h+='<td>'+(ctot[c[0]]||0)+'</td>';});
+    h+='<td>'+grand+'</td></tr></tfoot></table></div></div>';
+    return h;
+  }
+  function appendKPI(){
+    var m=document.getElementById('main'); if(!m) return;
+    if(document.getElementById('zonakpi')) return;
+    var div=document.createElement('div'); div.innerHTML=build();
+    var node=div.firstChild; if(node) m.insertBefore(node, m.firstChild);
+  }
+  function onKPI(){ try{ var a=document.querySelector('.tab.active'); return a&&a.dataset.f==='KPI'; }catch(e){ return false; } }
+  function hook(){
+    if(typeof window.render!=='function') return false;
+    var _r=window.render;
+    window.render=function(){ try{ _r.apply(this,arguments); } finally { if(onKPI()){ try{ appendKPI(); }catch(e){} } } };
+    if(onKPI()) appendKPI();
+    return true;
+  }
+  if(!hook()){ var n=0, iv=setInterval(function(){ if(hook()||++n>50) clearInterval(iv); },100); }
+})();
 </script></body></html>
