@@ -95,7 +95,7 @@ h1{font-size:21px;letter-spacing:.2px}
 .ph.RREE,.ph.ED,.ph.PROT,.ph.EMP,.ph.VEG{background:var(--rojo)}
 .dot.RREE,.dot.ED,.dot.PROT,.dot.EMP,.dot.VEG{background:var(--rojo)}
 .gal{grid-auto-rows:max-content}
-</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script><meta name="sgm-build" content="20260617145946"><style id="zonakpi-css">
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script><meta name="sgm-build" content="20260617151002"><style id="zonakpi-css">
 .ztbl{width:100%;border-collapse:collapse;font-size:13px}
 .ztbl th,.ztbl td{padding:9px 12px;text-align:center;border-bottom:1px solid var(--ln)}
 .ztbl th{background:#faf2f3;color:var(--txt);font-weight:700;font-size:12px}
@@ -104,6 +104,16 @@ h1{font-size:21px;letter-spacing:.2px}
 .ztbl tbody tr:hover{background:#fafbfc}
 .ztbl tfoot td{font-weight:700;background:#f4f6f8;border-top:2px solid var(--rojo)}
 .ztbl .z0{color:#cdd5dd}
+.zfbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:10px 14px 4px}
+.zfbtn{padding:6px 13px;border:1px solid var(--ln);background:#fff;border-radius:18px;font-size:12px;cursor:pointer;color:var(--txt)}
+.zfbtn:hover{border-color:var(--rojo)}
+.zfbtn.on{background:var(--rojo);border-color:var(--rojo);color:#fff}
+.zfd{margin-left:8px;font-size:12px;color:var(--mut)}
+.zfday{padding:5px 8px;border:1px solid var(--ln);border-radius:8px;font-size:12px;color:var(--txt)}
+.zwrap{display:flex;gap:14px;flex-wrap:wrap;padding:6px 0 0}
+.zpane{flex:2 1 540px;padding:0;overflow:auto}
+.zpane2{flex:1 1 300px;min-height:320px;display:flex;flex-direction:column}
+.zchart{flex:1;min-height:280px;padding:10px;position:relative}
 </style></head><body>
 <header><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
@@ -345,53 +355,76 @@ async function loadW(){
 })();
 
 </script><script>
-/* ZONA_KPI_V1 - Matriz Zona x Categoria en la pestania KPI */
+/* ZONA_KPI_V2 - Matriz Zona x Categoria + filtro fecha + dona ejecutiva */
 (function(){
+  function p2(n){return (n<10?'0':'')+n;}
   function norm(s){return (s==null?'':String(s)).toLowerCase().trim();}
   var ZMAP=[['aconcagua','Aconcagua'],['quillota','Quillota'],['marga','Marga Marga'],['san antonio','San Antonio'],['los andes','Los Andes'],[' andes','Los Andes'],['valpara','Valparaíso'],['valpo','Valparaíso'],['costa','Costa']];
   function mz(v){v=norm(v); if(!v) return null; for(var i=0;i<ZMAP.length;i++){ if(v.indexOf(ZMAP[i][0])>=0) return ZMAP[i][1]; } return null;}
-  function zoneOf(r){ return mz(r.zona)||mz(r.comuna)||mz(r.zona_grp)||'Sin zona'; }
-  var CATS=[['MANT','Mantenimiento'],['RREE','Trabajos RREE'],['ED','Clientes ED'],['PROT','Protecciones Dx'],['EMP','Empalmes'],['VEG','Manejo Vegetacion']];
-  var ZORDER=['Valparaíso','Costa','Quillota','Marga Marga','Aconcagua','San Antonio','Los Andes','Sin zona'];
-  function build(){
-    if(typeof REPORTS==='undefined') return '';
-    var iscat={}; CATS.forEach(function(c){iscat[c[0]]=1;});
-    var M={}, ztot={}, ctot={}, grand=0;
-    REPORTS.forEach(function(r){
-      if(!iscat[r.cat]) return;
-      var z=zoneOf(r);
-      M[z]=M[z]||{}; M[z][r.cat]=(M[z][r.cat]||0)+1;
-      ztot[z]=(ztot[z]||0)+1; ctot[r.cat]=(ctot[r.cat]||0)+1; grand++;
-    });
-    var zonas=ZORDER.filter(function(z){return ztot[z];});
-    Object.keys(ztot).forEach(function(z){ if(zonas.indexOf(z)<0) zonas.push(z); });
-    var h='<div class="sec" id="zonakpi"><div class="sechd"><span class="dot SAT"></span><h2>Actividades por Zona</h2><span class="cnt">'+grand+' actividades &middot; Mantenimiento, RREE, Clientes ED, Protecciones, Empalmes, Vegetacion</span></div>';
-    h+='<div class="panel" style="padding:0;overflow:auto"><table class="ztbl"><thead><tr><th style="text-align:left">Zona</th>';
+  function satZone(r){ var z=String(r.zona_grp||'').replace(/^\s*sat\s*/i,'').trim(); var zl=z.toLowerCase();
+    if(zl.indexOf('costa')>=0 && zl.indexOf('marga')>=0) return 'Costa - Marga Marga';
+    if(zl.indexOf('valpara')>=0||zl.indexOf('valpo')>=0) return 'Valparaíso';
+    if(zl.indexOf('quillota')>=0) return 'Quillota';
+    if(zl.indexOf('aconcagua')>=0) return 'Aconcagua';
+    if(zl.indexOf('san antonio')>=0) return 'San Antonio';
+    return z||'Sin zona'; }
+  function zoneOf(r){ return r.cat==='SAT' ? satZone(r) : (mz(r.zona)||mz(r.comuna)||mz(r.zona_grp)||'Sin zona'); }
+  var CATS=[['MANT','Mantenimiento'],['SAT','SAT Terreno'],['RREE','Trabajos RREE'],['ED','Clientes ED'],['PROT','Protecciones Dx'],['EMP','Empalmes'],['VEG','Manejo Vegetacion']];
+  var CCOL={MANT:'#E2001A',SAT:'#8a0010',RREE:'#f0857d',ED:'#6b7b8c',PROT:'#1f2a36',EMP:'#f4a300',VEG:'#2e8b57'};
+  var ZORDER=['Valparaíso','Costa','Quillota','Marga Marga','Costa - Marga Marga','Aconcagua','San Antonio','Los Andes','Sin zona'];
+  var ZF={mode:'all',day:''};
+  function today(){var d=new Date();return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}
+  function addD(n){var d=new Date();d.setDate(d.getDate()+n);return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}
+  function inF(r){var d=(r.dt||'').slice(0,10); if(ZF.day) return d===ZF.day; if(ZF.mode==='all')return true; if(!d)return false; if(ZF.mode==='today')return d===today(); if(ZF.mode==='yesterday')return d===addD(-1); if(ZF.mode==='week')return d>=addD(-6); return true;}
+  function compute(){ var M={},ztot={},ctot={},grand=0;
+    REPORTS.forEach(function(r){ if(!inF(r))return; var z=zoneOf(r); M[z]=M[z]||{}; M[z][r.cat]=(M[z][r.cat]||0)+1; ztot[z]=(ztot[z]||0)+1; ctot[r.cat]=(ctot[r.cat]||0)+1; grand++; });
+    return {M:M,ztot:ztot,ctot:ctot,grand:grand}; }
+  function days(){ var s={}; REPORTS.forEach(function(r){var d=(r.dt||'').slice(0,10); if(d)s[d]=1;}); return Object.keys(s).sort().reverse(); }
+  function tableHTML(D){
+    var zonas=ZORDER.filter(function(z){return D.ztot[z];}); Object.keys(D.ztot).forEach(function(z){if(zonas.indexOf(z)<0)zonas.push(z);});
+    var h='<table class="ztbl"><thead><tr><th style="text-align:left">Zona</th>';
     CATS.forEach(function(c){h+='<th>'+c[1]+'</th>';}); h+='<th>Total</th></tr></thead><tbody>';
-    zonas.forEach(function(z){
-      h+='<tr><td class="zn">'+z+'</td>';
-      CATS.forEach(function(c){var v=(M[z]&&M[z][c[0]])||0; h+='<td>'+(v?v:'<span class="z0">&middot;</span>')+'</td>';});
-      h+='<td class="zt">'+ztot[z]+'</td></tr>';
-    });
+    if(!zonas.length){ h+='<tr><td colspan="'+(CATS.length+2)+'" style="padding:18px;color:var(--mut)">Sin actividades en el periodo seleccionado</td></tr>'; }
+    zonas.forEach(function(z){ h+='<tr><td class="zn">'+z+'</td>';
+      CATS.forEach(function(c){var v=(D.M[z]&&D.M[z][c[0]])||0; h+='<td>'+(v?v:'<span class="z0">&middot;</span>')+'</td>';});
+      h+='<td class="zt">'+(D.ztot[z]||0)+'</td></tr>'; });
     h+='</tbody><tfoot><tr><td style="text-align:left">Total</td>';
-    CATS.forEach(function(c){h+='<td>'+(ctot[c[0]]||0)+'</td>';});
-    h+='<td>'+grand+'</td></tr></tfoot></table></div></div>';
+    CATS.forEach(function(c){h+='<td>'+(D.ctot[c[0]]||0)+'</td>';}); h+='<td>'+D.grand+'</td></tr></tfoot></table>';
+    return h;
+  }
+  var chart=null;
+  function drawChart(D){ try{ if(typeof Chart==='undefined')return; var cv=document.getElementById('zonaDona'); if(!cv)return;
+    var labels=[],data=[],cols=[]; CATS.forEach(function(c){ var v=D.ctot[c[0]]||0; if(v>0){labels.push(c[1]);data.push(v);cols.push(CCOL[c[0]]);} });
+    if(chart){chart.destroy();chart=null;}
+    chart=new Chart(cv,{type:'doughnut',data:{labels:labels,datasets:[{data:data,backgroundColor:cols,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}}}}});
+  }catch(e){} }
+  function refresh(){ var D=compute();
+    var t=document.getElementById('zonaTbl'); if(t)t.innerHTML=tableHTML(D);
+    var cnt=document.getElementById('zonaCnt'); if(cnt)cnt.textContent=D.grand+' actividades';
+    var bs=document.querySelectorAll('#zonakpi .zfbtn'); for(var i=0;i<bs.length;i++){ bs[i].classList.toggle('on', !ZF.day && bs[i].getAttribute('data-m')===ZF.mode); }
+    drawChart(D);
+  }
+  function controlsHTML(){
+    var h='<div class="zfbar"><button class="zfbtn" data-m="all">Todos</button><button class="zfbtn" data-m="today">Hoy</button><button class="zfbtn" data-m="yesterday">Ayer</button><button class="zfbtn" data-m="week">Últimos 7 días</button>';
+    h+='<span class="zfd">Día:</span><select class="zfday"><option value="">— Todos —</option>';
+    days().forEach(function(d){h+='<option value="'+d+'">'+d.split('-').reverse().join('-')+'</option>';});
+    h+='</select></div>';
     return h;
   }
   function appendKPI(){
-    var m=document.getElementById('main'); if(!m) return;
-    if(document.getElementById('zonakpi')) return;
-    var div=document.createElement('div'); div.innerHTML=build();
-    var node=div.firstChild; if(node) m.insertBefore(node, m.firstChild);
+    var m=document.getElementById('main'); if(!m||document.getElementById('zonakpi'))return;
+    var sec=document.createElement('div'); sec.className='sec'; sec.id='zonakpi';
+    sec.innerHTML='<div class="sechd"><span class="dot SAT"></span><h2>Actividades por Zona</h2><span class="cnt" id="zonaCnt"></span></div>'
+      +controlsHTML()
+      +'<div class="zwrap"><div class="panel zpane"><div id="zonaTbl" style="overflow:auto"></div></div>'
+      +'<div class="panel zpane2"><div class="ph SAT"><span>Distribucion por categoria</span></div><div class="zchart"><canvas id="zonaDona"></canvas></div></div></div>';
+    m.insertBefore(sec, m.firstChild);
+    var bs=sec.querySelectorAll('.zfbtn'); for(var i=0;i<bs.length;i++){ (function(b){ b.onclick=function(){ ZF.mode=b.getAttribute('data-m'); ZF.day=''; var sd=sec.querySelector('.zfday'); if(sd)sd.value=''; refresh(); }; })(bs[i]); }
+    var sd=sec.querySelector('.zfday'); if(sd) sd.onchange=function(){ ZF.day=sd.value; refresh(); };
+    refresh();
   }
-  function onKPI(){ try{ var a=document.querySelector('.tab.active'); return a&&a.dataset.f==='KPI'; }catch(e){ return false; } }
-  function hook(){
-    if(typeof window.render!=='function') return false;
-    var _r=window.render;
-    window.render=function(){ try{ _r.apply(this,arguments); } finally { if(onKPI()){ try{ appendKPI(); }catch(e){} } } };
-    if(onKPI()) appendKPI();
-    return true;
-  }
-  if(!hook()){ var n=0, iv=setInterval(function(){ if(hook()||++n>50) clearInterval(iv); },100); }
+  function onKPI(){ try{ var a=document.querySelector('.tab.active'); return a&&a.dataset.f==='KPI'; }catch(e){return false;} }
+  function hook(){ if(typeof window.render!=='function')return false; var _r=window.render; window.render=function(){ try{_r.apply(this,arguments);} finally { if(onKPI()){ try{appendKPI();}catch(e){} } } }; if(onKPI())appendKPI(); return true; }
+  if(!hook()){ var n=0,iv=setInterval(function(){ if(hook()||++n>50)clearInterval(iv); },100); }
 })();
 </script></body></html>
