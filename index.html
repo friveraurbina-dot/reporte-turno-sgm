@@ -95,7 +95,7 @@ h1{font-size:21px;letter-spacing:.2px}
 .ph.RREE,.ph.ED,.ph.PROT,.ph.EMP,.ph.VEG{background:var(--rojo)}
 .dot.RREE,.dot.ED,.dot.PROT,.dot.EMP,.dot.VEG{background:var(--rojo)}
 .gal{grid-auto-rows:max-content}
-</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script><meta name="sgm-build" content="20260617151635"><style id="zonakpi-css">
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script><meta name="sgm-build" content="20260617152456"><style id="zonakpi-css">
 .ztbl{width:100%;border-collapse:collapse;font-size:13px}
 .ztbl th,.ztbl td{padding:9px 12px;text-align:center;border-bottom:1px solid var(--ln)}
 .ztbl th{background:#faf2f3;color:var(--txt);font-weight:700;font-size:12px}
@@ -114,6 +114,13 @@ h1{font-size:21px;letter-spacing:.2px}
 .zpane{flex:2 1 540px;padding:0;overflow:auto}
 .zpane2{flex:1 1 300px;min-height:320px;display:flex;flex-direction:column}
 .zchart{flex:1;min-height:280px;padding:10px;position:relative}
+.zrelato{margin:14px 0 2px;border:1px solid var(--ln);border-radius:12px;background:#fff;padding:14px 16px}
+.zrelato h3{margin:0 0 3px;font-size:14px;color:var(--txt)}
+.zrelato .rsub{font-size:12px;color:var(--mut);margin-bottom:11px}
+.zr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:9px 20px}
+.zr-item{font-size:12.5px;line-height:1.45;color:var(--txt);display:flex;gap:8px}
+.zr-dot{width:10px;height:10px;border-radius:50%;margin-top:4px;flex:0 0 auto}
+.zr-note{font-size:11.5px;color:var(--mut);margin-top:11px;border-top:1px dashed var(--ln);padding-top:9px;line-height:1.5}
 </style></head><body>
 <header><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
@@ -355,7 +362,7 @@ async function loadW(){
 })();
 
 </script><script>
-/* ZONA_KPI_V3 - Matriz Zona x Categoria + SAT + filtro fecha + dona */
+/* ZONA_KPI_V4 - Matriz Zona x Cat + SAT + filtro + dona + relato */
 (function(){
   function p2(n){return (n<10?'0':'')+n;}
   function norm(s){return (s==null?'':String(s)).toLowerCase().trim();}
@@ -376,6 +383,15 @@ async function loadW(){
     return 'Sin zona'; }
   var CATS=[['MANT','Mantenimiento'],['SAT','SAT Terreno'],['RREE','Trabajos RREE'],['ED','Clientes ED'],['PROT','Protecciones Dx'],['EMP','Empalmes'],['VEG','Manejo Vegetacion']];
   var CCOL={MANT:'#E2001A',SAT:'#8a0010',RREE:'#f0857d',ED:'#6b7b8c',PROT:'#1f2a36',EMP:'#f4a300',VEG:'#2e8b57'};
+  var RELATO={
+    MANT:'Grupo <b>SGM</b>. Cada reporte de actividad de mantenimiento de la Subgerencia.',
+    SAT:'Grupos SAT zonales (<b>Costa_MM, Mtto Quillota, Valparaíso Dx, SAT Los Andes, San Antonio</b>). Cada reporte de actividad SAT de las cuadrillas en terreno.',
+    RREE:'Grupo <b>Supervisores</b>. Cada trabajo RREE reportado por los supervisores.',
+    ED:'Grupos <b>ED</b> por zona (Costa, Quillota, Marga Marga, San Antonio, Valparaíso, Aconcagua). Cada gestión a clientes electrodependientes.',
+    PROT:'Grupo <b>Actividades Protecciones Dx</b>. Solo mensajes en formato: Actividad Protecciones + Clasificación + Tipo de trabajo + Zona + Alimentador + OM.',
+    EMP:'Grupo <b>Trabajos Mant. Empalmes</b>. Solo mensajes en formato: Actividad + Zona + OT OSF / OM SAP.',
+    VEG:'Grupo <b>Reporte diario Actividades Vegetación MV</b>. Solo mensajes en formato: Manejo de vegetación + Ejecución + Alimentador + Rec/SED + Comuna + OM.'
+  };
   var ZORDER=['Valparaíso','Costa','Quillota','Marga Marga','Costa - Marga Marga','Aconcagua','San Antonio','Los Andes','Sin zona'];
   var ZF={mode:'all',day:''};
   function today(){var d=new Date();return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}
@@ -395,6 +411,12 @@ async function loadW(){
       h+='<td class="zt">'+(D.ztot[z]||0)+'</td></tr>'; });
     h+='</tbody><tfoot><tr><td style="text-align:left">Total</td>';
     CATS.forEach(function(c){h+='<td>'+(D.ctot[c[0]]||0)+'</td>';}); h+='<td>'+D.grand+'</td></tr></tfoot></table>';
+    return h;
+  }
+  function relatoHTML(){
+    var h='<div class="zrelato"><h3>¿De dónde viene cada dato?</h3><div class="rsub">Fuente (grupo de WhatsApp) y qué se cuenta como actividad en cada categoría.</div><div class="zr-grid">';
+    CATS.forEach(function(c){ h+='<div class="zr-item"><span class="zr-dot" style="background:'+CCOL[c[0]]+'"></span><div><b>'+c[1]+'.</b> '+RELATO[c[0]]+'</div></div>'; });
+    h+='</div><div class="zr-note">Cada <b>actividad</b> = un mensaje-reporte recibido por WhatsApp (con foto cuando corresponde), deduplicado por grupo + fecha + texto. La <b>zona</b> se infiere del campo zona / comuna / alimentador o del texto; SAT usa sus zonas propias (<b>Costa - Marga Marga</b> combinada). <b>Sin zona</b> = el mensaje no indica una ubicación reconocible (suelen ser avisos o mensajes sin ubicación). Periodo considerado: desde junio 2026.</div></div>';
     return h;
   }
   var chart=null;
@@ -422,7 +444,8 @@ async function loadW(){
     sec.innerHTML='<div class="sechd"><span class="dot SAT"></span><h2>Actividades por Zona</h2><span class="cnt" id="zonaCnt"></span></div>'
       +controlsHTML()
       +'<div class="zwrap"><div class="panel zpane"><div id="zonaTbl" style="overflow:auto"></div></div>'
-      +'<div class="panel zpane2"><div class="ph SAT"><span>Distribucion por categoria</span></div><div class="zchart"><canvas id="zonaDona"></canvas></div></div></div>';
+      +'<div class="panel zpane2"><div class="ph SAT"><span>Distribucion por categoria</span></div><div class="zchart"><canvas id="zonaDona"></canvas></div></div></div>'
+      +relatoHTML();
     m.insertBefore(sec, m.firstChild);
     var bs=sec.querySelectorAll('.zfbtn'); for(var i=0;i<bs.length;i++){ (function(b){ b.onclick=function(){ ZF.mode=b.getAttribute('data-m'); ZF.day=''; var sd=sec.querySelector('.zfday'); if(sd)sd.value=''; refresh(); }; })(bs[i]); }
     var sd=sec.querySelector('.zfday'); if(sd) sd.onchange=function(){ ZF.day=sd.value; refresh(); };
