@@ -95,10 +95,10 @@ h1{font-size:21px;letter-spacing:.2px}
 .ph.RREE,.ph.ED,.ph.PROT,.ph.EMP,.ph.VEG{background:var(--rojo)}
 .dot.RREE,.dot.ED,.dot.PROT,.dot.EMP,.dot.VEG{background:var(--rojo)}
 .gal{grid-auto-rows:max-content}
-</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script></head><body>
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script><meta name="sgm-build" content="20260617135916"></head><body>
 <header><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>17-06-2026 09:04</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>17-06-2026 09:55</b></div></div></div>
 <div class="hdbody"><div class="kpis">
 <div class="kpi"><div class="n">1309</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">86</div><div class="l">Mantenimiento</div></div>
@@ -283,5 +283,56 @@ async function loadW(){
  }catch(e){document.getElementById("wdays").innerHTML='<span style="font-size:11px;color:var(--mut);padding:0 8px">Pronostico no disponible</span>';}
 }
 (function(){var sel=document.getElementById("wcom");for(var k in WCOMS){var o=document.createElement("option");o.value=k;o.textContent=k;if(k==="Valparaiso")o.selected=true;sel.appendChild(o);}sel.onchange=loadW;loadW();})();
+
+</script><script>
+/* ===== Auto-actualizacion del tablero (sin interrumpir al que navega) =====
+   Cada hora revisa si hay una version nueva publicada (compara el marcador
+   meta[name=sgm-build]). Si la hay: si la pestania esta en segundo plano
+   recarga de inmediato; si esta visible, espera a que el usuario este inactivo
+   (sin mover el mouse/teclado/scroll por 45 s) y recien ahi recarga,
+   conservando la pestania activa y la posicion de scroll. Ante cualquier error
+   de red no hace nada y reintenta en el proximo ciclo. */
+(function(){
+  try{
+    var meta=document.querySelector('meta[name="sgm-build"]');
+    var BUILD=meta?meta.getAttribute('content'):'';
+    var CHECK_MS=60*60*1000;   // revisa cada 1 hora
+    var IDLE_MS=45*1000;       // "inactivo" = 45 s sin interaccion
+    var lastAct=Date.now(), pend=null;
+    ['mousemove','mousedown','keydown','touchstart','scroll','wheel'].forEach(function(ev){
+      window.addEventListener(ev,function(){lastAct=Date.now();},{passive:true});
+    });
+    try{
+      var s=sessionStorage.getItem('sgm_restore');
+      if(s){ sessionStorage.removeItem('sgm_restore'); s=JSON.parse(s);
+        if(s.f){ var b=document.querySelector('.tab[data-f="'+s.f+'"]'); if(b&&!b.classList.contains('active')) b.click(); }
+        if(typeof s.y==='number'){ setTimeout(function(){window.scrollTo(0,s.y);},60); }
+      }
+    }catch(e){}
+    function activeF(){ var a=document.querySelector('.tab.active'); return a?a.dataset.f:''; }
+    function doReload(){
+      try{ sessionStorage.setItem('sgm_restore',JSON.stringify({f:activeF(),y:window.scrollY||window.pageYOffset||0})); }catch(e){}
+      location.reload();
+    }
+    function applyWhenIdle(){
+      if(pend) return;
+      pend=setInterval(function(){
+        if(document.hidden || (Date.now()-lastAct)>IDLE_MS){ clearInterval(pend); pend=null; doReload(); }
+      },5000);
+    }
+    function check(){
+      fetch(location.pathname+'?v='+Date.now(),{cache:'no-store'})
+        .then(function(r){ return r.ok?r.text():Promise.reject(); })
+        .then(function(t){
+          var m=t.match(/name="sgm-build"\s+content="([^"]*)"/);
+          var nv=m?m[1]:'';
+          if(nv && BUILD && nv!==BUILD){ if(document.hidden) doReload(); else applyWhenIdle(); }
+        })
+        .catch(function(){});
+    }
+    setInterval(check,CHECK_MS);
+    document.addEventListener('visibilitychange',function(){ if(!document.hidden) check(); });
+  }catch(e){}
+})();
 
 </script></body></html>
