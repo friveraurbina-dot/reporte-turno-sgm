@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inspecciones de Mantenimiento en Terreno - Chilquinta</title>
+<style>
+:root{--cq:#c8102e;--ln:#e5e7eb;--txt:#1f2933;--mut:#6b7280;--bg:#f6f7f9}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:13px}
+.wrap{max-width:1200px;margin:0 auto;padding:16px}
+h1{font-size:19px;margin:0}
+.sub{color:var(--mut);font-size:12.5px;margin-top:2px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:14px 0}
+.kpi{background:#fff;border:1px solid var(--ln);border-radius:10px;padding:10px 12px}
+.kpi .n{font-size:22px;font-weight:700;color:var(--cq)}
+.kpi .l{font-size:12px;color:var(--mut)}
+.grid2{display:grid;grid-template-columns:minmax(320px,420px) 1fr;gap:16px;align-items:start}
+.card{background:#fff;border:1px solid var(--ln);border-radius:12px;padding:14px}
+.hd{background:var(--cq);color:#fff;font-size:13px;font-weight:600;padding:7px 11px;border-radius:7px;margin:-4px -4px 12px;display:flex;align-items:center;gap:7px;justify-content:space-between}
+.ff{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+label{font-size:11px;color:var(--mut);display:block}
+input,select,textarea{width:100%;padding:7px 8px;border:1px solid var(--ln);border-radius:7px;font-size:12.5px;font-family:inherit;margin-top:2px;background:#fff;color:var(--txt)}
+textarea{resize:vertical}
+.full{grid-column:1/3}
+.btn{background:var(--cq);color:#fff;border:0;padding:9px 12px;border-radius:8px;font-weight:600;font-size:13px;cursor:pointer;width:100%;margin-top:12px}
+.btn.sec{background:#fff;color:var(--cq);border:1px solid var(--cq);width:auto;padding:6px 12px;margin:0;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+th{ text-align:left;color:var(--mut);border-bottom:1px solid var(--ln);padding:6px 5px;position:sticky;top:0;background:#fff}
+td{padding:6px 5px;border-bottom:1px solid var(--ln);vertical-align:top}
+.tblwrap{max-height:420px;overflow:auto}
+.pill{padding:2px 9px;border-radius:11px;font-size:11px;white-space:nowrap}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;margin-top:12px}
+.gal a{display:block;aspect-ratio:1;border-radius:7px;overflow:hidden;border:1px solid var(--ln)}
+.gal img{width:100%;height:100%;object-fit:cover}
+.note{background:#fff3cd;border:1px solid #ffe08a;color:#8a6d00;padding:10px 12px;border-radius:8px;font-size:12.5px;margin:10px 0}
+.msg{font-size:12px;margin-top:8px;min-height:16px}
+.empty{color:var(--mut);text-align:center;padding:26px;font-size:12.5px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+</style></head>
+<body>
+<div class="wrap">
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
+    <div><h1>Inspecciones de mantenimiento en terreno</h1><div class="sub">Registro diario de actividades &middot; <span id="today"></span></div></div>
+    <button class="btn sec" id="btnExport">Exportar JSON</button>
+  </div>
+
+  <div id="cfgNote" class="note" style="display:none"></div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n" id="kHoy">0</div><div class="l">Hoy</div></div>
+    <div class="kpi"><div class="n" id="kSem">0</div><div class="l">Esta semana</div></div>
+    <div class="kpi"><div class="n" id="kTot">0</div><div class="l">Total</div></div>
+    <div class="kpi"><div class="n" id="kPend">0</div><div class="l">Pendientes</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="hd"><span>Registrar inspecci&oacute;n</span></div>
+      <form id="frm">
+      <div class="ff">
+        <label>Fecha<input name="fecha" type="date" required></label>
+        <label>T&eacute;cnico<input name="tecnico" placeholder="Nombre" required></label>
+        <label>Hora inicio<input name="hora_inicio" type="time"></label>
+        <label>Hora t&eacute;rmino<input name="hora_termino" type="time"></label>
+        <label>&Aacute;rea<input name="area" placeholder="&Aacute;rea"></label>
+        <label>Alimentador<input name="alimentador" placeholder="Alimentador"></label>
+        <label class="full">Ubicaci&oacute;n t&eacute;cnica<input name="ubicacion_tecnica" list="utlist" placeholder="Buscar o escribir..."><datalist id="utlist"></datalist></label>
+        <label>Tramo<input name="tramo"></label>
+        <label>N&deg; Permiso<input name="n_permiso"></label>
+        <label>Tipo de infraestructura / NIS<input name="tipo_infra_nis"></label>
+        <label>C&aacute;mara/Poste / NIS ref.<input name="camara_poste_nis"></label>
+        <label>Tipo de red
+          <select name="tipo_red"><option value="">-</option><option>A&eacute;rea</option><option>Subterr&aacute;nea</option><option>Mixta</option></select></label>
+        <label>Criticidad
+          <select name="criticidad"><option value="">-</option><option>Alta</option><option>Media</option><option>Baja</option></select></label>
+        <label class="full">Actividad a ejecutar<input name="actividad_ejecutar" placeholder="Descripci&oacute;n de la actividad"></label>
+        <label>Tipo de actividad
+          <select name="tipo_actividad"><option value="">-</option><option>Inspecci&oacute;n preventiva</option><option>Mantenimiento tipo B</option><option>Revisi&oacute;n de equipo</option><option>Manejo de vegetaci&oacute;n</option><option>Desrame</option><option>Otra</option></select></label>
+        <label>Estado
+          <select name="estado"><option>Ejecutada</option><option>En curso</option><option>Pendiente</option></select></label>
+        <label>&Aacute;rboles intervenidos<input name="arboles_intervenidos" type="number" min="0" value="0"></label>
+        <label>Fotograf&iacute;a<input name="foto" type="file" accept="image/*"></label>
+        <label class="full">Comentario<textarea name="comentario" rows="2" placeholder="Observaciones"></textarea></label>
+      </div>
+      <button class="btn" type="submit" id="btnReg">Registrar actividad</button>
+      <div class="msg" id="msg"></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="hd"><span>Inspecciones registradas</span><input id="q" placeholder="Buscar..." style="width:180px;margin:0;padding:5px 8px"></div>
+      <div class="tblwrap">
+        <table><thead><tr><th>Fecha</th><th>T&eacute;cnico</th><th>&Aacute;rea</th><th>Alimentador</th><th>Ubicaci&oacute;n t&eacute;c.</th><th>Actividad</th><th>Crit.</th><th>Estado</th><th>Foto</th></tr></thead>
+        <tbody id="tbody"></tbody></table>
+      </div>
+      <div id="galwrap"><div class="gal" id="gal"></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+var INSP_API = "https://script.google.com/macros/s/AKfycbxSjWtDVG-dJg6lFiXt9GnHri43o_0FlPPiXcRZ4eir4LwE81XIE0XqDOP6aWbLVf4z/exec";   // <-- se completa tras publicar el Apps Script
+
+var DATA = [];
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function today(){var d=new Date();return d.toISOString().slice(0,10);}
+function isoWeek(d){var t=new Date(d);t.setHours(0,0,0,0);t.setDate(t.getDate()+3-((t.getDay()+6)%7));var w1=new Date(t.getFullYear(),0,4);return 1+Math.round(((t-w1)/86400000-3+((w1.getDay()+6)%7))/7);}
+
+function configured(){ return INSP_API && INSP_API.indexOf('__INSP')===-1; }
+
+async function apiList(){
+  if(!configured()) return {data:[],ut:[]};
+  var r = await fetch(INSP_API + '?action=list', {method:'GET'});
+  return await r.json();
+}
+async function apiCreate(record, fotoB64, mime){
+  var r = await fetch(INSP_API, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify({record:record, foto_base64:fotoB64||'', foto_mime:mime||''})});
+  return await r.json();
+}
+
+function critColor(c){c=(c||'').toLowerCase();if(c==='alta')return['#fdecea','#a3282d'];if(c==='media')return['#fff3cd','#8a6d00'];if(c==='baja')return['#e6f4ea','#1e7e34'];return['#eef1f4','#555'];}
+function estColor(e){e=(e||'').toLowerCase();if(e.indexOf('ejec')>-1)return['#e6f4ea','#1e7e34'];if(e.indexOf('curso')>-1)return['#fff3cd','#8a6d00'];return['#fdecea','#a3282d'];}
+
+function render(){
+  var q=(document.getElementById('q').value||'').toLowerCase();
+  var rows=DATA.filter(function(r){return !q || JSON.stringify(r).toLowerCase().indexOf(q)>-1;});
+  rows.sort(function(a,b){return String(b.created_at||'').localeCompare(String(a.created_at||''));});
+  var tb=document.getElementById('tbody');
+  if(!rows.length){tb.innerHTML='<tr><td colspan="9"><div class="empty">'+(configured()?'Sin inspecciones registradas a&uacute;n.':'Backend no configurado todav&iacute;a.')+'</div></td></tr>';}
+  else{
+    tb.innerHTML=rows.map(function(r){
+      var cc=critColor(r.criticidad),ec=estColor(r.estado);
+      var foto=r.foto_url?'<a href="'+esc(r.foto_url)+'" target="_blank">ver</a>':'-';
+      return '<tr><td>'+esc(r.fecha)+'</td><td>'+esc(r.tecnico)+'</td><td>'+esc(r.area)+'</td><td>'+esc(r.alimentador)+'</td><td>'+esc(r.ubicacion_tecnica)+'</td><td>'+esc(r.actividad_ejecutar||r.tipo_actividad)+'</td><td><span class="pill" style="background:'+cc[0]+';color:'+cc[1]+'">'+esc(r.criticidad||'-')+'</span></td><td><span class="pill" style="background:'+ec[0]+';color:'+ec[1]+'">'+esc(r.estado)+'</span></td><td>'+foto+'</td></tr>';
+    }).join('');
+  }
+  var g=document.getElementById('gal');
+  var withF=rows.filter(function(r){return r.foto_url;});
+  g.innerHTML=withF.map(function(r){return '<a href="'+esc(r.foto_url)+'" target="_blank"><img loading="lazy" src="'+esc(r.foto_url)+'"></a>';}).join('');
+  // KPIs
+  var t=today(), wk=isoWeek(new Date());
+  document.getElementById('kTot').textContent=DATA.length;
+  document.getElementById('kHoy').textContent=DATA.filter(function(r){return String(r.fecha)===t;}).length;
+  document.getElementById('kSem').textContent=DATA.filter(function(r){return r.fecha&&isoWeek(new Date(r.fecha))===wk;}).length;
+  document.getElementById('kPend').textContent=DATA.filter(function(r){return String(r.estado||'').toLowerCase().indexOf('pend')>-1;}).length;
+}
+
+async function load(){
+  try{
+    var res=await apiList();
+    DATA=res.data||[];
+    var dl=document.getElementById('utlist');
+    dl.innerHTML=(res.ut||[]).map(function(u){return '<option value="'+esc(u)+'">';}).join('');
+  }catch(e){ DATA=[]; }
+  if(!configured()){
+    var n=document.getElementById('cfgNote'); n.style.display='block';
+    n.innerHTML='El backend a&uacute;n no est&aacute; conectado. El formulario y la tabla ya funcionan; falta pegar la URL del Apps Script publicado.';
+  }
+  render();
+}
+
+function fileToB64(file){return new Promise(function(res){if(!file){res(['','']);return;}var fr=new FileReader();fr.onload=function(){res([fr.result,file.type]);};fr.readAsDataURL(file);});}
+
+document.getElementById('frm').addEventListener('submit', async function(ev){
+  ev.preventDefault();
+  var msg=document.getElementById('msg'), btn=document.getElementById('btnReg');
+  if(!configured()){ msg.style.color='#a3282d'; msg.textContent='Backend no configurado: no se puede guardar todav&iacute;a.'; return; }
+  var fd=new FormData(ev.target), rec={};
+  fd.forEach(function(v,k){ if(k!=='foto') rec[k]=v; });
+  var file=ev.target.foto.files[0];
+  btn.disabled=true; btn.textContent='Guardando...'; msg.style.color='#555'; msg.textContent='Subiendo...';
+  try{
+    var fb=await fileToB64(file);
+    var r=await apiCreate(rec, fb[0], fb[1]);
+    if(r.ok){ msg.style.color='#1e7e34'; msg.textContent='Inspecci&oacute;n registrada.'; ev.target.reset(); ev.target.fecha.value=today(); DATA.unshift(r.record); render(); }
+    else { msg.style.color='#a3282d'; msg.textContent='Error: '+(r.error||'desconocido'); }
+  }catch(e){ msg.style.color='#a3282d'; msg.textContent='Error de conexi&oacute;n: '+e; }
+  btn.disabled=false; btn.textContent='Registrar actividad';
+});
+
+document.getElementById('q').addEventListener('input', render);
+document.getElementById('btnExport').addEventListener('click', function(){
+  var blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='inspecciones_export.json';a.click();
+});
+
+document.getElementById('today').textContent=new Date().toLocaleDateString('es-CL',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+document.querySelector('[name=fecha]').value=today();
+load();
+</script>
+</body></html>
