@@ -59,7 +59,7 @@ a.lnk{color:var(--cq);text-decoration:none;font-weight:600}
     </div>
     <div class="tblwrap">
       <table><thead><tr>
-        <th>Fecha recepci&oacute;n</th><th>Documento</th><th>Tipo</th><th>Descripci&oacute;n</th><th>N&deg; Cliente</th><th>Comuna</th><th>Respaldo</th>
+        <th>Fecha recepci&oacute;n</th><th>Documento</th><th>Tipo</th><th>Descripci&oacute;n</th><th>N&deg; Cliente</th><th>Comuna</th>
       </tr></thead><tbody id="tbody"></tbody></table>
     </div>
   </div>
@@ -106,11 +106,11 @@ function render(){
   });
   rows.sort(function(a,b){return String(b.correo||b.fecha).localeCompare(String(a.correo||a.fecha));});
   var tb=document.getElementById('tbody');
-  if(!rows.length){ tb.innerHTML='<tr><td colspan="7"><div class="empty">Sin documentos.</div></td></tr>'; }
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="6"><div class="empty">Sin documentos.</div></td></tr>'; }
   else{
     tb.innerHTML=rows.map(function(r){
       var tcol=r.tipo==='Reclamo'?['#fff3cd','#8a6d00']:['#e6f1fb','#185fa5'];
-      return '<tr><td>'+esc(r.fecha)+'</td><td>'+esc(r.nombre)+'</td><td><span class="pill" style="background:'+tcol[0]+';color:'+tcol[1]+'">'+esc(r.tipo)+'</span></td><td>'+esc(r.desc)+'</td><td>'+esc(r.cliente||'-')+'</td><td>'+esc(r.comuna||'-')+'</td><td><a class="lnk" href="'+esc(r.url)+'" target="_blank">ver</a></td></tr>';
+      return '<tr><td>'+esc(r.fecha)+'</td><td>'+esc(r.nombre)+'</td><td><span class="pill" style="background:'+tcol[0]+';color:'+tcol[1]+'">'+esc(r.tipo)+'</span></td><td>'+esc(r.desc)+'</td><td>'+esc(r.cliente||'-')+'</td><td>'+esc(r.comuna||'-')+'</td></tr>';
     }).join('');
   }
   document.getElementById('kTot').textContent=DATA.length;
