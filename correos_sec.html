@@ -106,4 +106,10 @@ document.getElementById('fTipo').addEventListener('change', render);
 document.getElementById('fComuna').addEventListener('change', render);
 document.getElementById('btnExport').addEventListener('click', function(){
   var blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='correos_sec_export.
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='avisos_sec_export.json';a.click();
+});
+document.getElementById('snap').textContent=SNAP;
+fillComunas();
+render();
+</script>
+</body></html>
