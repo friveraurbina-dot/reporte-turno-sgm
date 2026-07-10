@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
-<title>Correos SEC (provisorio) - Chilquinta</title>
+<title>Avisos SEC (Correo) - Chilquinta</title>
 <style>
 :root{--cq:#c8102e;--ln:#e5e7eb;--txt:#1f2933;--mut:#6b7280;--bg:#f6f7f9}
 *{box-sizing:border-box}
@@ -34,7 +34,7 @@ td{padding:7px 6px;border-bottom:1px solid var(--ln);vertical-align:top}
 <body>
 <div class="wrap">
   <div class="bar">
-    <div><h1>Correos SEC <span style="font-size:12px;color:var(--mut);font-weight:400">(provisorio)</span></h1>
+    <div><h1>Avisos SEC <span style="font-size:12px;color:var(--mut);font-weight:400">(Correo)</span></h1>
       <div class="sub">Documentos SEC recibidos por correo (egarcia@chilquinta.cl) &middot; desde julio 2026 &middot; snapshot <span id="snap"></span></div></div>
     <button class="btn" id="btnExport">Exportar JSON</button>
   </div>
@@ -106,10 +106,4 @@ document.getElementById('fTipo').addEventListener('change', render);
 document.getElementById('fComuna').addEventListener('change', render);
 document.getElementById('btnExport').addEventListener('click', function(){
   var blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='correos_sec_export.json';a.click();
-});
-document.getElementById('snap').textContent=SNAP;
-fillComunas();
-render();
-</script>
-</body></html>
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='correos_sec_export.
