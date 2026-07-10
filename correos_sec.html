@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
+<title>Correos SEC (provisorio) - Chilquinta</title>
+<style>
+:root{--cq:#c8102e;--ln:#e5e7eb;--txt:#1f2933;--mut:#6b7280;--bg:#f6f7f9}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--bg);color:var(--txt);font-size:13px}
+.wrap{max-width:1300px;margin:0 auto;padding:16px}
+h1{font-size:19px;margin:0}
+.sub{color:var(--mut);font-size:12.5px;margin-top:2px}
+.bar{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
+.kpi{background:#fff;border:1px solid var(--ln);border-radius:10px;padding:10px 12px}
+.kpi .n{font-size:23px;font-weight:700;color:var(--cq)}
+.kpi .l{font-size:12px;color:var(--mut)}
+.card{background:#fff;border:1px solid var(--ln);border-radius:12px;padding:14px;margin-top:14px}
+.hd{background:var(--cq);color:#fff;font-size:13px;font-weight:600;padding:7px 11px;border-radius:7px;margin:-4px -4px 12px;display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap}
+input,select{padding:6px 9px;border:1px solid var(--ln);border-radius:7px;font-size:12.5px;font-family:inherit;background:#fff;color:var(--txt)}
+.hd input,.hd select{border-color:rgba(255,255,255,.5);background:rgba(255,255,255,.12);color:#fff}
+.hd input::placeholder{color:#ffdada}
+table{width:100%;border-collapse:collapse;font-size:11.5px}
+th{text-align:left;color:var(--mut);border-bottom:1px solid var(--ln);padding:7px 6px;position:sticky;top:0;background:#fff;white-space:nowrap}
+td{padding:7px 6px;border-bottom:1px solid var(--ln);vertical-align:top}
+.tblwrap{max-height:560px;overflow:auto}
+.pill{padding:2px 9px;border-radius:11px;font-size:11px;white-space:nowrap}
+a.lnk{color:var(--cq);text-decoration:none;font-weight:600}
+.empty{color:var(--mut);text-align:center;padding:30px}
+.note{background:#eef4ff;border:1px solid #cfe0ff;color:#1e4a8a;padding:9px 12px;border-radius:8px;font-size:12px;margin:8px 0}
+</style></head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div><h1>Correos SEC <span style="font-size:12px;color:var(--mut);font-weight:400">(provisorio)</span></h1>
+      <div class="sub">Documentos SEC recibidos por correo (Elizabeth Garc&iacute;a) &middot; desde julio 2026 &middot; snapshot <span id="snap"></span></div></div>
+    <button class="btn" id="btnExport" style="background:#fff;color:var(--cq);border:1px solid var(--cq);padding:6px 12px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">Exportar JSON</button>
+  </div>
+
+  <div class="note">Vista de solo lectura. Datos extra&iacute;dos de los correos SEC; se actualiza junto con la corrida del tablero.</div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="n" id="kTot">0</div><div class="l">Documentos</div></div>
+    <div class="kpi"><div class="n" id="kRec">0</div><div class="l">Reclamos</div></div>
+    <div class="kpi"><div class="n" id="kOfi">0</div><div class="l">Oficios / Circulares</div></div>
+    <div class="kpi"><div class="n" id="kCom">0</div><div class="l">Comunas</div></div>
+    <div class="kpi"><div class="n" id="kCorreos">0</div><div class="l">Correos</div></div>
+    <div class="kpi"><div class="n" id="kUlt" style="font-size:16px">-</div><div class="l">&Uacute;ltima recepci&oacute;n</div></div>
+  </div>
+
+  <div class="card">
+    <div class="hd">
+      <span>Documentos SEC</span>
+      <div class="tools">
+        <input id="q" placeholder="Buscar nombre, N&deg; cliente, comuna, descripci&oacute;n...">
+        <select id="fTipo"><option value="">Tipo: todos</option><option>Reclamo</option><option>Oficio/Circular</option></select>
+        <select id="fComuna"><option value="">Comuna: todas</option></select>
+      </div>
+    </div>
+    <div class="tblwrap">
+      <table><thead><tr>
+        <th>Fecha recepci&oacute;n</th><th>Documento</th><th>Tipo</th><th>Descripci&oacute;n</th><th>N&deg; Cliente</th><th>Comuna</th><th>Respaldo</th>
+      </tr></thead><tbody id="tbody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+var SNAP = "2026-07-10";
+var MERI = "https://meridian.chilquinta.cl/Meridian/AUTORIDAD/SEC/Ordinario/2026/Todos/ORD.%20N%C2%B0%20";
+function ordUrl(n){ return MERI + n + ".pdf"; }
+var DATA = [
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341047",tipo:"Reclamo",desc:"Reclamo presentado por Gladys Vasquez Guerra, con domicilio en San Martín N° 56.",cliente:"525728-K",comuna:"Santa María",url:ordUrl("341047")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341050",tipo:"Reclamo",desc:"Reclamo presentado por Iván Leiva Salinas, con domicilio en Camino Antiguo S/n.",cliente:"450001",comuna:"Panquehue",url:ordUrl("341050")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341053",tipo:"Reclamo",desc:"Reclamo presentado por Leonila Lazcano Cortes, con domicilio en Punitaqui, Paradero 11, Reñaca Alto.",cliente:"391016-4",comuna:"Viña del Mar",url:ordUrl("341053")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341054",tipo:"Reclamo",desc:"Reclamo presentado por Felipe Collante Farías, con domicilio en Avenida Valparaíso N° 2550.",cliente:"1001616-9",comuna:"Villa Alemana",url:ordUrl("341054")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341059",tipo:"Reclamo",desc:"Reclamo presentado por Luis Reyes Jerez, con domicilio en General del Canto N° 606.",cliente:"109508-0",comuna:"Los Andes",url:ordUrl("341059")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341074",tipo:"Reclamo",desc:"Reclamo presentado por Kruschesca Peña Osorio, con domicilio en Calle Miguel Schawbs N°120, San Roque.",cliente:"100999-0",comuna:"Valparaíso",url:ordUrl("341074")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341076",tipo:"Reclamo",desc:"Reclamo presentado por Gladys Vergara Ahumada, con domicilio en Arturos N° 851.",cliente:"202949-9",comuna:"Villa Alemana",url:ordUrl("341076")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341087",tipo:"Reclamo",desc:"Reclamo presentado por Camila Martínez Llancañir, con domicilio en Millarahue N° 631.",cliente:"395987-2",comuna:"Los Andes",url:ordUrl("341087")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341088",tipo:"Reclamo",desc:"Reclamo presentado por Mauricio Castro Santa Cruz, con domicilio en La Grieta, Belloto Sur N° 1073.",cliente:"317497",comuna:"Quilpué",url:ordUrl("341088")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341089",tipo:"Reclamo",desc:"Reclamo presentado por Juan Vera Iturrieta, con domicilio en Hualcapo Ocoa, Sitio 4.",cliente:"417946",comuna:"Hijuelas",url:ordUrl("341089")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341095",tipo:"Reclamo",desc:"Reclamo presentado por Mario Carrasco Sais, con domicilio en Las Pelargonias N° 1040.",cliente:"465586-0",comuna:"Concón",url:ordUrl("341095")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341097",tipo:"Reclamo",desc:"Reclamo presentado por Jimena Orfilia Zamora Zamora, con domicilio en Camarico Bajo S/n.",cliente:"648304-6",comuna:"Olmué",url:ordUrl("341097")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341102",tipo:"Reclamo",desc:"Reclamo presentado por Giovanni Basualto Urtubia, con domicilio en Pasaje Lincoyán N° 514.",cliente:"205696-8",comuna:"Los Andes",url:ordUrl("341102")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341103",tipo:"Reclamo",desc:"Reclamo presentado por Macarena Belén Toro Verdejo, con domicilio en San Rafaél N° 1552.",cliente:"484056-9",comuna:"Los Andes",url:ordUrl("341103")},
+ {fecha:"2026-07-08",correo:"2026-07-08 17:15",nombre:"ORD. N° 341109",tipo:"Reclamo",desc:"Reclamo presentado por Irene Quintana Pino, con domicilio en Las Acacias N° 240.",cliente:"912227",comuna:"Villa Alemana",url:ordUrl("341109")},
+ {fecha:"2026-07-08",correo:"2026-07-08 18:22",nombre:"OF. ORD. N° 341133",tipo:"Oficio/Circular",desc:"Reitera instrucciones relativas a la disponibilidad pública, formato estandarizado y procedimiento de las planillas Excel asociadas a indicadores de Calidad de Gestión Comercial de la Norma Técnica de Calidad de Servicio para Sistemas de Distribución e instruye designación de contraparte técnica.",cliente:"",comuna:"",url:"https://wlhttp.sec.cl/timesM/global/imgPDF.jsp?pa=4292069&pd=5127330&pc=2476634"}
+];
+
+function esc(s){return String(s==null?'':s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+function fillComunas(){
+  var set={}; DATA.forEach(function(r){ if(r.comuna) set[r.comuna]=1; });
+  var sel=document.getElementById('fComuna');
+  Object.keys(set).sort().forEach(function(c){ var o=document.createElement('option'); o.textContent=c; sel.appendChild(o); });
+}
+function render(){
+  var q=(document.getElementById('q').value||'').toLowerCase();
+  var ft=document.getElementById('fTipo').value;
+  var fco=document.getElementById('fComuna').value;
+  var rows=DATA.filter(function(r){
+    if(q && JSON.stringify(r).toLowerCase().indexOf(q)===-1) return false;
+    if(ft && r.tipo!==ft) return false;
+    if(fco && r.comuna!==fco) return false;
+    return true;
+  });
+  rows.sort(function(a,b){return String(b.correo||b.fecha).localeCompare(String(a.correo||a.fecha));});
+  var tb=document.getElementById('tbody');
+  if(!rows.length){ tb.innerHTML='<tr><td colspan="7"><div class="empty">Sin documentos.</div></td></tr>'; }
+  else{
+    tb.innerHTML=rows.map(function(r){
+      var tcol=r.tipo==='Reclamo'?['#fff3cd','#8a6d00']:['#e6f1fb','#185fa5'];
+      return '<tr><td>'+esc(r.fecha)+'</td><td>'+esc(r.nombre)+'</td><td><span class="pill" style="background:'+tcol[0]+';color:'+tcol[1]+'">'+esc(r.tipo)+'</span></td><td>'+esc(r.desc)+'</td><td>'+esc(r.cliente||'-')+'</td><td>'+esc(r.comuna||'-')+'</td><td><a class="lnk" href="'+esc(r.url)+'" target="_blank">ver</a></td></tr>';
+    }).join('');
+  }
+  document.getElementById('kTot').textContent=DATA.length;
+  document.getElementById('kRec').textContent=DATA.filter(function(r){return r.tipo==='Reclamo';}).length;
+  document.getElementById('kOfi').textContent=DATA.filter(function(r){return r.tipo!=='Reclamo';}).length;
+  var comSet={}; DATA.forEach(function(r){ if(r.comuna) comSet[r.comuna]=1; });
+  document.getElementById('kCom').textContent=Object.keys(comSet).length;
+  var corSet={}; DATA.forEach(function(r){ corSet[r.correo]=1; });
+  document.getElementById('kCorreos').textContent=Object.keys(corSet).length;
+  var fechas=DATA.map(function(r){return r.fecha;}).sort();
+  document.getElementById('kUlt').textContent=fechas.length?fechas[fechas.length-1]:'-';
+}
+document.getElementById('q').addEventListener('input', render);
+document.getElementById('fTipo').addEventListener('change', render);
+document.getElementById('fComuna').addEventListener('change', render);
+document.getElementById('btnExport').addEventListener('click', function(){
+  var blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='correos_sec_export.json';a.click();
+});
+document.getElementById('snap').textContent=SNAP;
+fillComunas();
+render();
+</script>
+</body></html>
