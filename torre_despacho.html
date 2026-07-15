@@ -2156,4 +2156,11 @@ async function loadWeatherStrip(){
 
 })();
 </script>
-</body></html>
+<style>
+/* Ajuste pantalla completa: el dashboard llena la ventana; el mapa crece */
+html,body{height:100%;margin:0;padding:0;}
+#tower-root{min-height:100% !important;height:100% !important;border:0 !important;border-radius:0 !important;display:flex !important;flex-direction:column !important;overflow:hidden;}
+#tower-root .layout{height:auto !important;flex:1 1 auto !important;min-height:0 !important;}
+#tower-root .scope-wrap,#tower-root .sidepanel{min-height:0 !important;}
+@media (max-width:900px){#tower-root{height:auto !important;}#tower-root .layout{height:auto !important;flex:none !important;}#tower-root .scope-wrap{height:60vh !important;}}
+</style></body></html>
