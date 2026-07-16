@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
-<meta name="sgm-build" content="20260716084225">
+<meta name="sgm-build" content="20260716085554">
 <title>Tablero Gestion Subgerencia de Mantenimiento - Chilquinta</title><style>
 :root{--rojo:#E2001A;--bg:#f4f6f8;--card:#fff;--ln:#e2e7ec;--txt:#1f2a36;--mut:#6b7b8c;--mant:#E2001A;--sat:#E2001A}
 *{box-sizing:border-box}body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt)}
@@ -101,7 +101,7 @@ h1{font-size:21px;letter-spacing:.2px}
 .expbtn{background:#fff;color:var(--rojo);border:1px solid var(--rojo);padding:6px 13px;border-radius:8px;font-weight:700;font-size:12px;cursor:pointer;font-family:inherit}
 .expbtn:hover{background:var(--rojo);color:#fff}
 .expbtn.on{background:var(--rojo);color:#fff}
-#mapbox{height:470px;border-radius:10px;border:1px solid var(--ln);z-index:1}
+#mapbox{height:540px;border-radius:10px;border:1px solid var(--ln);z-index:1}
 .mapbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
 .mapbar select{padding:6px 9px;border:1px solid var(--ln);border-radius:8px;font-size:12.5px;font-family:inherit;background:#fff;color:var(--txt)}
 .mapbar .lbl{font-size:12px;color:var(--mut);font-weight:700}
@@ -116,7 +116,7 @@ h1{font-size:21px;letter-spacing:.2px}
 <div class="topview" id="view-terreno">
 <header><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>16-07-2026 08:42</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>16-07-2026 08:55</b></div></div></div>
 <div class="hdbody"><div class="kpis">
 <div class="kpi"><div class="n">1431</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">168</div><div class="l">Mantenimiento</div></div>
@@ -314,11 +314,14 @@ function initMap(){
       '</div>');
     grp.addLayer(mk);
   });
+  var center=VCENTER;
   if(rows.length){ grp.addTo(LMAP);
     var sla=0,slo=0; rows.forEach(function(p){ sla+=p.lat; slo+=p.lon; });
-    LMAP.setView([sla/rows.length, slo/rows.length], VZOOM);   // centro dinamico, zoom SIEMPRE fijo
-  } else { LMAP.setView(VCENTER, VZOOM); }
-  setTimeout(function(){ try{ LMAP.invalidateSize(); }catch(e){} },250);
+    center=[sla/rows.length, slo/rows.length];
+  }
+  LMAP.setView(center, VZOOM);                 // centro sobre la V Region, zoom SIEMPRE fijo
+  function _fix(){ try{ LMAP.invalidateSize(); LMAP.setView(center, VZOOM); }catch(e){} }
+  [60,300,700,1200].forEach(function(ms){ setTimeout(_fix, ms); });
 }
 function render(){
  window.__allps=PHOTOS;
