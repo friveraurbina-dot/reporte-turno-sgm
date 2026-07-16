@@ -1238,7 +1238,7 @@ function switchTab(tab){
   if(tab==='electrodep') renderElectrodep();
 }
 
-let matrixView='prio';
+let matrixView='prio', estadoTipo='ALL';
 function renderMatrix(){
   const orders = visibleOrders();
   const rows = [1,2,3,4].map(p=>{
@@ -1273,20 +1273,27 @@ function renderMatrix(){
       <tr class="total"><td class="rowlabel">Total</td>${cell(tUni)}${cell(tOrd)}</tr>
     </table>
     <div class="note" style="margin-top:8px;">Unidades (cuadrillas) desplegadas y órdenes activas por zona de operación.</div>`;
+  const etOrders = state.orders.filter(o=> estadoTipo==='ALL' || o.tipo===estadoTipo);
   const ze={};
-  state.orders.forEach(o=>{const z=o.zona||'—'; if(!ze[z]) ze[z]={sa:0,ruta:0,sitio:0,tot:0}; ze[z].tot++;
+  etOrders.forEach(o=>{const z=o.zona||'—'; if(!ze[z]) ze[z]={sa:0,ruta:0,sitio:0,tot:0}; ze[z].tot++;
     if(o.unassigned||o.estado==='nuevo') ze[z].sa++;
     else if(o.estado==='despachado'||o.estado==='en_camino') ze[z].ruta++;
     else ze[z].sitio++;});
   const zEst=Object.keys(ze).sort();
   const tSa=zEst.reduce((a,z)=>a+ze[z].sa,0), tRu=zEst.reduce((a,z)=>a+ze[z].ruta,0), tSi=zEst.reduce((a,z)=>a+ze[z].sitio,0), tTo=zEst.reduce((a,z)=>a+ze[z].tot,0);
-  const estadoHtml=`
+  const etPills=`<div class="est-tipo">
+      <button class="stab ${estadoTipo==='ALL'?'active':''}" data-t="ALL">Todas</button>
+      <button class="stab ${estadoTipo==='DOM'?'active':''}" data-t="DOM">🏠 Domiciliaria</button>
+      <button class="stab ${estadoTipo==='MT'?'active':''}" data-t="MT">⚡ Media tensión</button>
+    </div>`;
+  const etLbl = estadoTipo==='ALL'?'Todas las órdenes':(estadoTipo==='DOM'?'Solo domiciliarias (DOM)':'Solo media tensión (MT)');
+  const estadoHtml=etPills+`
     <table class="matrix">
       <tr><th style="text-align:left;">Zona</th><th>⚠ S/asig</th><th>🚚 En ruta</th><th>📍 En sitio</th><th>Total</th></tr>
       ${zEst.map(z=>`<tr><td class="rowlabel">${zonaLabel(z)}</td>${cell(ze[z].sa)}${cell(ze[z].ruta)}${cell(ze[z].sitio)}${cell(ze[z].tot)}</tr>`).join('')}
       <tr class="total"><td class="rowlabel">Total</td>${cell(tSa)}${cell(tRu)}${cell(tSi)}${cell(tTo)}</tr>
     </table>
-    <div class="note" style="margin-top:8px;"><b>S/asig</b>: sin cuadrilla · <b>En ruta</b>: despachada / en camino · <b>En sitio</b>: cuadrilla trabajando. Estado de atención de las órdenes por zona.</div>`;
+    <div class="note" style="margin-top:8px;"><b>${etLbl}</b> · <b>S/asig</b>: sin cuadrilla · <b>En ruta</b>: despachada / en camino · <b>En sitio</b>: cuadrilla trabajando.</div>`;
   const tabsHtml=`
     <div class="matrix-tabs">
       <button class="mtab ${matrixView==='prio'?'active':''}" data-v="prio">Prioridad y tipo</button>
@@ -1296,6 +1303,7 @@ function renderMatrix(){
   const body = matrixView==='zona' ? zonaHtml : (matrixView==='estado' ? estadoHtml : html);
   document.getElementById('priority-matrix').innerHTML = `<div class="matrix-wrap">${tabsHtml}${body}</div>`;
   document.querySelectorAll('#priority-matrix .mtab').forEach(b=>b.addEventListener('click',()=>{ matrixView=b.dataset.v; renderMatrix(); }));
+  document.querySelectorAll('#priority-matrix .stab').forEach(b=>b.addEventListener('click',()=>{ estadoTipo=b.dataset.t; renderMatrix(); }));
 }
 
 function renderAll(){
@@ -2219,4 +2227,7 @@ html,body{height:100%;margin:0;padding:0;}
 #tower-root .matrix-tabs{display:flex;gap:6px;margin-bottom:8px;}
 #tower-root .matrix-tabs .mtab{flex:1;background:var(--panel2);border:1px solid var(--border);color:var(--muted);font-family:var(--body);font-size:10.5px;font-weight:700;padding:6px 6px;border-radius:7px;cursor:pointer;line-height:1.2;}
 #tower-root .matrix-tabs .mtab.active{background:var(--red);color:#fff;border-color:var(--red);}
+#tower-root .est-tipo{display:flex;gap:5px;margin-bottom:8px;}
+#tower-root .est-tipo .stab{flex:1;background:var(--panel2);border:1px solid var(--border);color:var(--muted);font-size:9.5px;font-weight:700;padding:5px 4px;border-radius:6px;cursor:pointer;line-height:1.15;}
+#tower-root .est-tipo .stab.active{background:var(--blue);color:#fff;border-color:var(--blue);}
 </style></body></html>
