@@ -1273,12 +1273,27 @@ function renderMatrix(){
       <tr class="total"><td class="rowlabel">Total</td>${cell(tUni)}${cell(tOrd)}</tr>
     </table>
     <div class="note" style="margin-top:8px;">Unidades (cuadrillas) desplegadas y órdenes activas por zona de operación.</div>`;
+  const ze={};
+  state.orders.forEach(o=>{const z=o.zona||'—'; if(!ze[z]) ze[z]={sa:0,ruta:0,sitio:0,tot:0}; ze[z].tot++;
+    if(o.unassigned||o.estado==='nuevo') ze[z].sa++;
+    else if(o.estado==='despachado'||o.estado==='en_camino') ze[z].ruta++;
+    else ze[z].sitio++;});
+  const zEst=Object.keys(ze).sort();
+  const tSa=zEst.reduce((a,z)=>a+ze[z].sa,0), tRu=zEst.reduce((a,z)=>a+ze[z].ruta,0), tSi=zEst.reduce((a,z)=>a+ze[z].sitio,0), tTo=zEst.reduce((a,z)=>a+ze[z].tot,0);
+  const estadoHtml=`
+    <table class="matrix">
+      <tr><th style="text-align:left;">Zona</th><th>⚠ S/asig</th><th>🚚 En ruta</th><th>📍 En sitio</th><th>Total</th></tr>
+      ${zEst.map(z=>`<tr><td class="rowlabel">${zonaLabel(z)}</td>${cell(ze[z].sa)}${cell(ze[z].ruta)}${cell(ze[z].sitio)}${cell(ze[z].tot)}</tr>`).join('')}
+      <tr class="total"><td class="rowlabel">Total</td>${cell(tSa)}${cell(tRu)}${cell(tSi)}${cell(tTo)}</tr>
+    </table>
+    <div class="note" style="margin-top:8px;"><b>S/asig</b>: sin cuadrilla · <b>En ruta</b>: despachada / en camino · <b>En sitio</b>: cuadrilla trabajando. Estado de atención de las órdenes por zona.</div>`;
   const tabsHtml=`
     <div class="matrix-tabs">
       <button class="mtab ${matrixView==='prio'?'active':''}" data-v="prio">Prioridad y tipo</button>
       <button class="mtab ${matrixView==='zona'?'active':''}" data-v="zona">Unidades por zona</button>
+      <button class="mtab ${matrixView==='estado'?'active':''}" data-v="estado">Estado por zona</button>
     </div>`;
-  const body = matrixView==='zona' ? zonaHtml : html;
+  const body = matrixView==='zona' ? zonaHtml : (matrixView==='estado' ? estadoHtml : html);
   document.getElementById('priority-matrix').innerHTML = `<div class="matrix-wrap">${tabsHtml}${body}</div>`;
   document.querySelectorAll('#priority-matrix .mtab').forEach(b=>b.addEventListener('click',()=>{ matrixView=b.dataset.v; renderMatrix(); }));
 }
