@@ -1240,7 +1240,7 @@ function switchTab(tab){
   if(tab==='electrodep') renderElectrodep();
 }
 
-let matrixView='prio', estadoTipo='ALL';
+let matrixView='estado', estadoTipo='ALL';
 function renderMatrix(){
   const orders = visibleOrders();
   const rows = [1,2,3,4].map(p=>{
@@ -1275,7 +1275,7 @@ function renderMatrix(){
       <tr class="total"><td class="rowlabel">Total</td>${cell(tUni)}${cell(tOrd)}</tr>
     </table>
     <div class="note" style="margin-top:8px;">Unidades (cuadrillas) desplegadas y órdenes activas por zona de operación.</div>`;
-  const etOrders = state.orders.filter(o=> estadoTipo==='ALL' || o.tipo===estadoTipo);
+  const etOrders = state.orders.filter(o=> estadoTipo==='ALL' ? true : (estadoTipo==='ELE' ? !!o.electrodependiente : o.tipo===estadoTipo));
   const ze={};
   etOrders.forEach(o=>{const z=o.zona||'—'; if(!ze[z]) ze[z]={sa:0,ruta:0,sitio:0,tot:0}; ze[z].tot++;
     if(o.unassigned||o.estado==='nuevo') ze[z].sa++;
@@ -1287,8 +1287,9 @@ function renderMatrix(){
       <button class="stab ${estadoTipo==='ALL'?'active':''}" data-t="ALL">Todas</button>
       <button class="stab ${estadoTipo==='DOM'?'active':''}" data-t="DOM">🏠 Domiciliaria</button>
       <button class="stab ${estadoTipo==='MT'?'active':''}" data-t="MT">⚡ Media tensión</button>
+      <button class="stab ${estadoTipo==='ELE'?'active':''}" data-t="ELE" style="${estadoTipo==='ELE'?'':'color:#E0218A;'}">❤ Electrodep.</button>
     </div>`;
-  const etLbl = estadoTipo==='ALL'?'Todas las órdenes':(estadoTipo==='DOM'?'Solo domiciliarias (DOM)':'Solo media tensión (MT)');
+  const etLbl = estadoTipo==='ALL'?'Todas las órdenes':(estadoTipo==='DOM'?'Solo domiciliarias (DOM)':(estadoTipo==='ELE'?'Solo electrodependientes':'Solo media tensión (MT)'));
   const estadoHtml=etPills+`
     <table class="matrix">
       <tr><th style="text-align:left;">Zona</th><th>⚠ S/asig</th><th>🚚 En ruta</th><th>📍 En sitio</th><th>Total</th></tr>
