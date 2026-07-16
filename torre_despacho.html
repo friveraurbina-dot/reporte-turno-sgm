@@ -2090,7 +2090,7 @@ document.querySelectorAll('.tab').forEach(t=>{
   t.addEventListener('click', ()=> { switchTab(t.dataset.tab); renderAll(); });
 });
 document.getElementById('reset-btn').addEventListener('click', resetState);
-document.function exportOrdersXlsx(){
+function exportOrdersXlsx(){
   if(typeof XLSX==='undefined'){ alert('No se pudo cargar la libreria de Excel. Reintente con conexion.'); return; }
   const EST_LBL={nuevo:'Sin asignar',despachado:'Despachado',en_camino:'En camino',llego:'En sitio',en_progreso:'En progreso'};
   function zlab(z){ return (z||'').replace('Zona_','').replace(/_/g,' '); }
@@ -2124,7 +2124,7 @@ document.function exportOrdersXlsx(){
   const snap=(DATA_SNAPSHOT_TIME||'').replace('T','_').replace(/:/g,'').slice(0,15);
   XLSX.writeFile(wb, 'torre_ordenes_'+(snap||'export')+'.xlsx');
 }
-getElementById('export-btn').addEventListener('click', downloadReport);
+document.getElementById('export-btn').addEventListener('click', downloadReport);
   document.getElementById('export-xlsx').addEventListener('click', exportOrdersXlsx);
 document.getElementById('sec-btn').addEventListener('click', ()=>{
   renderSecChart();
