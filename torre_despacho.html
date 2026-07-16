@@ -550,7 +550,7 @@ function computeCenter(){
 }
 
 function initMap(){
-  map = L.map('leaflet-map', {zoomControl:true, attributionControl:true, worldCopyJump:true}).setView([CENTER.lat,CENTER.lon], 12);
+  map = L.map('leaflet-map', {preferCanvas:true, zoomControl:true, attributionControl:true, worldCopyJump:true}).setView([CENTER.lat,CENTER.lon], 12);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{
     maxZoom:19, attribution:'&copy; OpenStreetMap &copy; CARTO'
   }).addTo(map);
@@ -840,7 +840,12 @@ function renderEntities(){
 
   visibleOrdersOnMap().filter(hasCoords).forEach(o=>{
     const sel = o.id===selectedOrderId;
-    const m = L.marker([o.lat,o.lon], {icon:orderDivIcon(o, sel)})
+    const isMT = o.tipo==='MT';
+    const rad = (o.priority<=2?7:5) + (isMT?1.5:0) + (sel?3:0);
+    const fill = o.unassigned ? '#f2a73b' : (STATUS_COLOR[o.estado]||'#2B6CB0');
+    const ring = o.electrodependiente ? '#E0218A' : (sel ? '#0E8DA6' : (priorityRingColor(o.priority)||'#ffffff'));
+    const w = o.electrodependiente ? 3 : (sel?3:(o.priority<=2?2:1));
+    const m = L.circleMarker([o.lat,o.lon], {radius:rad, weight:w, color:ring, fillColor:fill, fillOpacity:0.92})
       .bindTooltip(`#${o.id} — ${o.addr}${o.emergency?' ⚠️':''} · ${o.incidentStatus==='predicted'?'Predicha':o.incidentStatus==='confirmed'?'Confirmada':(o.incidentStatus||'')}`, {direction:'top', offset:[0,-10]})
       .addTo(map);
     m.on('click', ()=> selectOrder(o.id));
