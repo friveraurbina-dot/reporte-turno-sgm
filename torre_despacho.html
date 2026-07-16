@@ -2192,6 +2192,13 @@ html,body{height:100%;margin:0;padding:0;}
 #tower-root{min-height:100% !important;height:100% !important;border:0 !important;border-radius:0 !important;display:flex !important;flex-direction:column !important;overflow:hidden;}
 #tower-root .layout{height:auto !important;flex:1 1 auto !important;min-height:0 !important;}
 #tower-root .scope-wrap,#tower-root .sidepanel{min-height:0 !important;}
+/* La cabecera, la franja de clima y la barra inferior NO deben encogerse (solo el mapa/layout flexiona); asi el clima no queda comprimido. */
+#tower-root .topbar,#tower-root .weather-strip,#tower-root .footerbar{flex-shrink:0 !important;}
+#tower-root .weather-strip{min-height:52px;padding-top:8px !important;padding-bottom:8px !important;align-items:center;}
+#tower-root .weather-strip .wchip{padding:5px 10px;}
+#tower-root .weather-strip .wc-zona{font-size:9px;}
+#tower-root .weather-strip .wc-temp{font-size:13px;}
+#tower-root .weather-strip .wc-wind{font-size:9px;}
 @media (max-width:900px){#tower-root{height:auto !important;}#tower-root .layout{height:auto !important;flex:none !important;}#tower-root .scope-wrap{height:60vh !important;}}
 </style><style>
 #tower-root .matrix-tabs{display:flex;gap:6px;margin-bottom:8px;}
