@@ -433,10 +433,13 @@ let MAX_RANGE = 6;
 let placementOrderId = null;
 let selectedZona = 'ALL';
 let selectedIncidentStatus = 'ALL';
+let __voKey=null,__voCache=null,__voRef=null;
 function visibleOrders(){
+  const __k=selectedZona+'|'+selectedIncidentStatus;
+  if(__k===__voKey && __voRef===state.orders && __voCache) return __voCache;
   let list = selectedZona==='ALL' ? state.orders : state.orders.filter(o=>o.zona===selectedZona);
   if(selectedIncidentStatus !== 'ALL') list = list.filter(o=>o.incidentStatus===selectedIncidentStatus);
-  return list;
+  __voKey=__k; __voCache=list; __voRef=state.orders; return list;
 }
 function applyBitacoraFilter(list){
   if(bitacoraTipoFilter==='DOM') return list.filter(o=>o.tipo==='DOM');
@@ -735,14 +738,16 @@ function tickSweep(){
   sectorLayer.setLatLngs(pts);
   sweepLineLayer.setLatLngs([[CENTER.lat,CENTER.lon], destinationPoint(CENTER.lat,CENTER.lon,sweepAngle,radiusNow)]);
 
-  visibleOrders().filter(hasCoords).forEach(o=>{
-    const brg = bearing(CENTER.lat,CENTER.lon,o.lat,o.lon);
-    let diff = (sweepAngle - brg + 360) % 360;
+  const __vo = visibleOrders(); let __flashes = 0;
+  for(let __i=0; __i<__vo.length; __i++){
+    const o = __vo[__i]; if(!hasCoords(o)) continue;
+    if(o._brg==null) o._brg = bearing(CENTER.lat,CENTER.lon,o.lat,o.lon);
+    const diff = (sweepAngle - o._brg + 360) % 360;
     if(diff < 8){
       pushLog(o);
-      flashLogEntry(o.id);
+      if(__flashes < 6){ flashLogEntry(o.id); __flashes++; }
     }
-  });
+  }
 }
 
 function pushLog(entity){
@@ -752,7 +757,7 @@ function pushLog(entity){
   entity._lastScan = new Date().toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 function flashLogEntry(id){
-  const node = document.querySelector(`#tab-log .log-entry[data-id="${id}"]`);
+  const node = (window.__logNodes && window.__logNodes[id]) || document.querySelector(`#tab-log .log-entry[data-id="${id}"]`);
   if(node){ node.classList.remove('flash'); void node.offsetWidth; node.classList.add('flash'); }
 }
 
@@ -951,6 +956,7 @@ function renderLog(){
   html += `<div class="section-label">En atención</div>`;
   html += assigned.map(o=>logCardHtml(o)).join('') || '<div class="empty">SIN CONTACTOS ACTIVOS</div>';
   document.getElementById('tab-log').innerHTML = html;
+  window.__logNodes = {}; document.querySelectorAll('#tab-log .log-entry').forEach(function(n){ window.__logNodes[n.dataset.id]=n; });
   bindLogClicks();
   document.querySelectorAll('.tipo-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
