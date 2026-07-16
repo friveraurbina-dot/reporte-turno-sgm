@@ -737,17 +737,9 @@ function tickSweep(){
   }
   sectorLayer.setLatLngs(pts);
   sweepLineLayer.setLatLngs([[CENTER.lat,CENTER.lon], destinationPoint(CENTER.lat,CENTER.lon,sweepAngle,radiusNow)]);
-
-  const __vo = visibleOrders(); let __flashes = 0;
-  for(let __i=0; __i<__vo.length; __i++){
-    const o = __vo[__i]; if(!hasCoords(o)) continue;
-    if(o._brg==null) o._brg = bearing(CENTER.lat,CENTER.lon,o.lat,o.lon);
-    const diff = (sweepAngle - o._brg + 360) % 360;
-    if(diff < 8){
-      pushLog(o);
-      if(__flashes < 6){ flashLogEntry(o.id); __flashes++; }
-    }
-  }
+  // Radar SOLO VISUAL: barrido decorativo sobre toda la zona de concesion.
+  // Se elimino el escaneo de ordenes por frame (pushLog / flash de bitacora),
+  // que era la causa de la lentitud. La bitacora sigue mostrando todas las ordenes.
 }
 
 function pushLog(entity){
