@@ -375,6 +375,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
     <div style="display:flex; gap:8px;">
       <button class="reset-link" id="sec-btn">🌐 Ver SEC (Chile)</button>
       <button class="reset-link" id="export-btn">📄 Exportar informe HTML</button>
+      <button class="reset-link" id="export-xlsx">📊 Exportar Excel</button>
       <button class="reset-link" id="reset-btn">⟳ Reiniciar demo</button>
     </div>
   </div>
@@ -395,6 +396,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 (function(){
 
@@ -2088,7 +2090,42 @@ document.querySelectorAll('.tab').forEach(t=>{
   t.addEventListener('click', ()=> { switchTab(t.dataset.tab); renderAll(); });
 });
 document.getElementById('reset-btn').addEventListener('click', resetState);
-document.getElementById('export-btn').addEventListener('click', downloadReport);
+document.function exportOrdersXlsx(){
+  if(typeof XLSX==='undefined'){ alert('No se pudo cargar la libreria de Excel. Reintente con conexion.'); return; }
+  const EST_LBL={nuevo:'Sin asignar',despachado:'Despachado',en_camino:'En camino',llego:'En sitio',en_progreso:'En progreso'};
+  function zlab(z){ return (z||'').replace('Zona_','').replace(/_/g,' '); }
+  function row(o){ return {
+    'N Orden': o.id,
+    'Prioridad': 'P'+o.priority + (o.priority===1?' (maxima)':''),
+    'Tipo': o.tipo==='MT'?'Media Tension (RED)':'Domiciliaria (DOM)',
+    'Estado atencion': EST_LBL[o.estado]||o.estado||'',
+    'Estado energia': o.estadoEnergia || (o.incidentStatus==='predicted'?'Predecida':o.incidentStatus==='confirmed'?'Confirmada':(o.incidentStatus||'')),
+    'Zona': zlab(o.zona),
+    'Comuna': o.comuna||'',
+    'N Clientes': o.clientes||'',
+    'NIS / Cliente': o.nis||'',
+    'Direccion': o.addr||'',
+    'Cuadrilla': o.crew||'',
+    'Despachador': o.despachador||'',
+    'Espera (h:m)': o.espera||'',
+    'ETR': (o.etr||'').replace('T',' '),
+    'Electrodependiente': o.electrodependiente?'Si':'No'
+  }; }
+  const all = (state && state.orders) ? state.orders.slice() : [];
+  const byId = (a,b)=> String(a.id).localeCompare(String(b.id));
+  const red = all.filter(o=>o.tipo==='MT').sort(byId).map(row);
+  const dom = all.filter(o=>o.tipo==='DOM').sort(byId).map(row);
+  const ele = all.filter(o=>o.electrodependiente).sort(byId).map(row);
+  const wb = XLSX.utils.book_new();
+  const mk = a => XLSX.utils.json_to_sheet(a.length?a:[{'N Orden':'(sin ordenes)'}]);
+  XLSX.utils.book_append_sheet(wb, mk(red), 'RED - Media Tension');
+  XLSX.utils.book_append_sheet(wb, mk(dom), 'Domiciliarias');
+  XLSX.utils.book_append_sheet(wb, mk(ele), 'Electrodependientes');
+  const snap=(DATA_SNAPSHOT_TIME||'').replace('T','_').replace(/:/g,'').slice(0,15);
+  XLSX.writeFile(wb, 'torre_ordenes_'+(snap||'export')+'.xlsx');
+}
+getElementById('export-btn').addEventListener('click', downloadReport);
+  document.getElementById('export-xlsx').addEventListener('click', exportOrdersXlsx);
 document.getElementById('sec-btn').addEventListener('click', ()=>{
   renderSecChart();
   const secUpdatedDate = parseSecDate(SEC_SNAPSHOT.updated);
