@@ -1240,7 +1240,7 @@ function switchTab(tab){
   if(tab==='electrodep') renderElectrodep();
 }
 
-let matrixView='estado', estadoTipo='ALL';
+let matrixView='estado', estadoTipo='ALL', estadoMetric='ord';
 function renderMatrix(){
   const orders = visibleOrders();
   const rows = [1,2,3,4].map(p=>{
@@ -1277,10 +1277,11 @@ function renderMatrix(){
     <div class="note" style="margin-top:8px;">Unidades (cuadrillas) desplegadas y órdenes activas por zona de operación.</div>`;
   const etOrders = state.orders.filter(o=> estadoTipo==='ALL' ? true : (estadoTipo==='ELE' ? !!o.electrodependiente : o.tipo===estadoTipo));
   const ze={};
-  etOrders.forEach(o=>{const z=o.zona||'—'; if(!ze[z]) ze[z]={sa:0,ruta:0,sitio:0,tot:0}; ze[z].tot++;
-    if(o.unassigned||o.estado==='nuevo') ze[z].sa++;
-    else if(o.estado==='despachado'||o.estado==='en_camino') ze[z].ruta++;
-    else ze[z].sitio++;});
+  const incQ = o => estadoMetric==='cli' ? (o.clientes||0) : 1;
+  etOrders.forEach(o=>{const z=o.zona||'—'; if(!ze[z]) ze[z]={sa:0,ruta:0,sitio:0,tot:0}; const q=incQ(o); ze[z].tot+=q;
+    if(o.unassigned||o.estado==='nuevo') ze[z].sa+=q;
+    else if(o.estado==='despachado'||o.estado==='en_camino') ze[z].ruta+=q;
+    else ze[z].sitio+=q;});
   const zEst=Object.keys(ze).sort();
   const tSa=zEst.reduce((a,z)=>a+ze[z].sa,0), tRu=zEst.reduce((a,z)=>a+ze[z].ruta,0), tSi=zEst.reduce((a,z)=>a+ze[z].sitio,0), tTo=zEst.reduce((a,z)=>a+ze[z].tot,0);
   const etPills=`<div class="est-tipo">
@@ -1290,13 +1291,19 @@ function renderMatrix(){
       <button class="stab ${estadoTipo==='ELE'?'active':''}" data-t="ELE" style="${estadoTipo==='ELE'?'':'color:#E0218A;'}">❤ Electrodep.</button>
     </div>`;
   const etLbl = estadoTipo==='ALL'?'Todas las órdenes':(estadoTipo==='DOM'?'Solo domiciliarias (DOM)':(estadoTipo==='ELE'?'Solo electrodependientes':'Solo media tensión (MT)'));
-  const estadoHtml=etPills+`
+  const metLbl = estadoMetric==='cli' ? 'cantidad de clientes afectados' : 'cantidad de órdenes';
+  const totColLbl = estadoMetric==='cli' ? '👥 Clientes' : '📋 Órdenes';
+  const metPills=`<div class="est-tipo est-metric">
+      <button class="stab mmtab ${estadoMetric==='ord'?'active':''}" data-m="ord">📋 N° de órdenes</button>
+      <button class="stab mmtab ${estadoMetric==='cli'?'active':''}" data-m="cli">👥 N° de clientes</button>
+    </div>`;
+  const estadoHtml=etPills+metPills+`
     <table class="matrix">
-      <tr><th style="text-align:left;">Zona</th><th>⚠ S/asig</th><th>🚚 En ruta</th><th>📍 En sitio</th><th>Total</th></tr>
+      <tr><th style="text-align:left;">Zona</th><th>⚠ S/asig</th><th>🚚 En ruta</th><th>📍 En sitio</th><th>${totColLbl}</th></tr>
       ${zEst.map(z=>`<tr><td class="rowlabel">${zonaLabel(z)}</td>${cell(ze[z].sa)}${cell(ze[z].ruta)}${cell(ze[z].sitio)}${cell(ze[z].tot)}</tr>`).join('')}
       <tr class="total"><td class="rowlabel">Total</td>${cell(tSa)}${cell(tRu)}${cell(tSi)}${cell(tTo)}</tr>
     </table>
-    <div class="note" style="margin-top:8px;"><b>${etLbl}</b> · <b>S/asig</b>: sin cuadrilla · <b>En ruta</b>: despachada / en camino · <b>En sitio</b>: cuadrilla trabajando.</div>`;
+    <div class="note" style="margin-top:8px;"><b>${etLbl}</b> · mostrando <b>${metLbl}</b> · <b>S/asig</b>: sin cuadrilla · <b>En ruta</b>: despachada / en camino · <b>En sitio</b>: cuadrilla trabajando.</div>`;
   const tabsHtml=`
     <div class="matrix-tabs">
       <button class="mtab ${matrixView==='prio'?'active':''}" data-v="prio">Prioridad y tipo</button>
@@ -1306,7 +1313,8 @@ function renderMatrix(){
   const body = matrixView==='zona' ? zonaHtml : (matrixView==='estado' ? estadoHtml : html);
   document.getElementById('priority-matrix').innerHTML = `<div class="matrix-wrap">${tabsHtml}${body}</div>`;
   document.querySelectorAll('#priority-matrix .mtab').forEach(b=>b.addEventListener('click',()=>{ matrixView=b.dataset.v; renderMatrix(); }));
-  document.querySelectorAll('#priority-matrix .stab').forEach(b=>b.addEventListener('click',()=>{ estadoTipo=b.dataset.t; renderMatrix(); }));
+  document.querySelectorAll('#priority-matrix .stab[data-t]').forEach(b=>b.addEventListener('click',()=>{ estadoTipo=b.dataset.t; renderMatrix(); }));
+  document.querySelectorAll('#priority-matrix .mmtab').forEach(b=>b.addEventListener('click',()=>{ estadoMetric=b.dataset.m; renderMatrix(); }));
 }
 
 function renderAll(){
