@@ -81,6 +81,19 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 .layout{display:grid; grid-template-columns:1fr minmax(340px, 400px); gap:0; height:660px;}
 .scope-wrap{position:relative; background:#dfe2e6;}
 #leaflet-map{width:100%; height:100%; background:#dfe2e6;}
+/* Panel prototipo: Fotos Contingencia en movimiento (sobre area derecha del mapa) */
+.cont-fotos{position:absolute; top:58px; right:16px; width:300px; z-index:640; background:rgba(18,20,26,.84); border:1px solid rgba(255,255,255,.16); border-radius:12px; box-shadow:0 8px 28px rgba(0,0,0,.42); overflow:hidden; display:none; animation:cfFloat 6s ease-in-out infinite;}
+@keyframes cfFloat{0%,100%{transform:translateY(0);}50%{transform:translateY(-6px);}}
+.cont-fotos .cf-head{font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.05em; color:#fff; background:linear-gradient(90deg,#D2232A,#7a121f); padding:7px 10px; text-transform:uppercase; display:flex; align-items:center; gap:6px;}
+.cont-fotos .cf-head .cf-live{width:7px;height:7px;border-radius:50%;background:#7CFC00;box-shadow:0 0 6px #7CFC00;animation:cfBlink 1.4s infinite;}
+@keyframes cfBlink{0%,100%{opacity:1;}50%{opacity:.25;}}
+.cont-fotos .cf-stage{position:relative; width:100%; height:200px; background:#000; overflow:hidden;}
+.cont-fotos .cf-stage img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transform:translateX(42px) scale(1.06); transition:opacity .9s ease, transform 4.2s ease;}
+.cont-fotos .cf-stage img.on{opacity:1; transform:translateX(0) scale(1);}
+.cont-fotos .cf-cap{font-family:var(--mono); font-size:10px; color:#cfd3da; padding:6px 10px; display:flex; justify-content:space-between; gap:8px;}
+.cont-fotos .cf-dots{display:flex; gap:4px; padding:0 10px 9px; flex-wrap:wrap;}
+.cont-fotos .cf-dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.28);transition:background .3s;}
+.cont-fotos .cf-dots i.on{background:#D2232A;}
 .leaflet-container{background:#dfe2e6 !important; font-family:var(--body);}
 .leaflet-control-zoom{border:1px solid rgba(0,0,0,.15) !important; margin-top:14px !important;}
 .leaflet-control-zoom a{background:#ffffff !important; color:var(--red-dark) !important; border-color:rgba(0,0,0,.12) !important;}
@@ -317,6 +330,12 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
   <div class="layout">
     <div class="scope-wrap">
       <div id="leaflet-map"></div>
+      <div id="cont-fotos" class="cont-fotos">
+        <div class="cf-head"><span class="cf-live"></span> Fotos Contingencia</div>
+        <div class="cf-stage" id="cf-stage"></div>
+        <div class="cf-cap" id="cf-cap"></div>
+        <div class="cf-dots" id="cf-dots"></div>
+      </div>
       <div class="hud-frame">
         <div class="hud-corner tl"></div><div class="hud-corner tr"></div>
         <div class="hud-corner bl"></div><div class="hud-corner br"></div>
@@ -2227,6 +2246,34 @@ async function loadWeatherStrip(){
   container.innerHTML = results.map(weatherChipHtml).join('');
 }
 
+
+async function startContingenciaPanel(){
+  try{
+    const r = await fetch('contingencia_fotos.json?v='+Date.now(), {cache:'no-store'});
+    const j = await r.json();
+    const fotos = (j.fotos||[]).filter(f=>f && f.src);
+    if(!fotos.length) return;
+    const box=document.getElementById('cont-fotos'), stage=document.getElementById('cf-stage'), cap=document.getElementById('cf-cap'), dots=document.getElementById('cf-dots');
+    if(!box) return;
+    box.style.display='block';
+    const imgs=[document.createElement('img'),document.createElement('img')];
+    imgs.forEach(im=>stage.appendChild(im));
+    dots.innerHTML = fotos.map((_,k)=>'<i data-k="'+k+'"></i>').join('');
+    const dotEls=[...dots.querySelectorAll('i')];
+    let cur=0, idx=0;
+    function fmtDt(x){ try{ const d=new Date(x); return d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
+    function show(i){
+      const f=fotos[i]; const nextEl=imgs[cur^1];
+      nextEl.onload=function(){ imgs.forEach(im=>im.classList.remove('on')); nextEl.classList.add('on'); cur^=1; };
+      nextEl.src=f.src;
+      cap.innerHTML='<span>Fotos terreno &middot; '+(i+1)+' / '+fotos.length+'</span><span>'+fmtDt(f.dt)+'</span>';
+      dotEls.forEach((d,k)=>d.classList.toggle('on', k===i));
+    }
+    show(0);
+    setInterval(function(){ idx=(idx+1)%fotos.length; show(idx); }, 3800);
+  }catch(e){ console.error('cont-fotos', e); }
+}
+
 (async function init(){
   try{
     const __d = await fetch('torre_data.json?v='+Date.now(), {cache:'no-store'}).then(r=>r.json());
@@ -2246,6 +2293,7 @@ async function loadWeatherStrip(){
   setTimeout(()=> { map.invalidateSize(); fitMapToData(); }, 250);
   window.addEventListener('resize', ()=> map.invalidateSize());
   loadWeatherStrip();
+  startContingenciaPanel();
   try{
     const snap = new Date(DATA_SNAPSHOT_TIME);
     const label = snap.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + snap.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
