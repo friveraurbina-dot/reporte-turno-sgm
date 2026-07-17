@@ -90,6 +90,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 .cont-fotos .cf-stage{position:relative; width:100%; height:200px; background:#000; overflow:hidden;}
 .cont-fotos .cf-stage img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transform:translateX(42px) scale(1.06); transition:opacity .9s ease, transform 4.2s ease;}
 .cont-fotos .cf-stage img.on{opacity:1; transform:translateX(0) scale(1);}
+.cont-fotos .cf-head .cf-cat{margin-left:auto; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:10px; background:rgba(255,255,255,.18); letter-spacing:.03em;}
 .cont-fotos .cf-cap{font-family:var(--mono); font-size:10px; color:#cfd3da; padding:6px 10px; display:flex; justify-content:space-between; gap:8px;}
 .cont-fotos .cf-dots{display:flex; gap:4px; padding:0 10px 9px; flex-wrap:wrap;}
 .cont-fotos .cf-dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.28);transition:background .3s;}
@@ -331,7 +332,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
     <div class="scope-wrap">
       <div id="leaflet-map"></div>
       <div id="cont-fotos" class="cont-fotos">
-        <div class="cf-head"><span class="cf-live"></span> Fotos Contingencia</div>
+        <div class="cf-head"><span class="cf-live"></span> Fotos Terreno <span id="cf-cat" class="cf-cat"></span></div>
         <div class="cf-stage" id="cf-stage"></div>
         <div class="cf-cap" id="cf-cap"></div>
         <div class="cf-dots" id="cf-dots"></div>
@@ -2262,12 +2263,15 @@ async function startContingenciaPanel(){
     const dotEls=[...dots.querySelectorAll('i')];
     let cur=0, idx=0;
     function fmtDt(x){ try{ const d=new Date(x); return d.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
+    const CATCOL={CONT:'#D2232A',RREE:'#0f8a5f',VEG:'#4c9a2a'};
+    const catEl=document.getElementById('cf-cat');
     function show(i){
       const f=fotos[i]; const nextEl=imgs[cur^1];
       nextEl.onload=function(){ imgs.forEach(im=>im.classList.remove('on')); nextEl.classList.add('on'); cur^=1; };
       nextEl.src=f.src;
-      cap.innerHTML='<span>Fotos terreno &middot; '+(i+1)+' / '+fotos.length+'</span><span>'+fmtDt(f.dt)+'</span>';
-      dotEls.forEach((d,k)=>d.classList.toggle('on', k===i));
+      if(catEl){ catEl.textContent=f.catLabel||''; catEl.style.background=(CATCOL[f.cat]||'rgba(255,255,255,.18)'); }
+      cap.innerHTML='<span>'+(f.catLabel||'Terreno')+' &middot; '+(i+1)+' / '+fotos.length+'</span><span>'+fmtDt(f.dt)+'</span>';
+      dotEls.forEach((d,k)=>{ d.classList.toggle('on', k===i); d.style.background = (k===i? (CATCOL[fotos[k].cat]||'#D2232A') : 'rgba(255,255,255,.28)'); });
     }
     show(0);
     setInterval(function(){ idx=(idx+1)%fotos.length; show(idx); }, 3800);
