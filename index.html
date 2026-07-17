@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
-<meta name="sgm-build" content="20260717175241">
+<meta name="sgm-build" content="20260717175901">
 <title>Tablero Gestion Subgerencia de Mantenimiento - Chilquinta</title><style>
 :root{--rojo:#E2001A;--bg:#f4f6f8;--card:#fff;--ln:#e2e7ec;--txt:#1f2a36;--mut:#6b7b8c;--mant:#E2001A;--sat:#E2001A}
 *{box-sizing:border-box}body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--txt)}
@@ -116,7 +116,7 @@ h1{font-size:21px;letter-spacing:.2px}
 <div class="topview" id="view-terreno">
 <header><div class="brand"><div class="logo">CQ</div><div><h1>Tablero Gestion Subgerencia de Mantenimiento</h1>
 <div class="sub2">Gerencia de Distribucion &middot; Chilquinta Distribucion</div>
-<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>17-07-2026 17:52</b></div></div></div>
+<div class="sub">Actividades reportadas por WhatsApp (junio 2026) &middot; Actualizado: <b>17-07-2026 17:59</b></div></div></div>
 <div class="hdbody"><div class="kpis">
 <div class="kpi"><div class="n">2073</div><div class="l">Reportes</div></div>
 <div class="kpi"><div class="n" style="color:var(--mant)">401</div><div class="l">Mantenimiento</div></div>
@@ -516,8 +516,8 @@ rotSet(false);
     document.querySelectorAll('.topview').forEach(function(v){v.style.display='none';});
     var el=document.getElementById('view-torre'); if(el) el.style.display='';
     if(typeof ensureTorre==='function') ensureTorre();
-    // Desactivar cambio de pestanas superior (de momento)
-    document.querySelectorAll('.toptab').forEach(function(t){ t.style.pointerEvents='none'; t.style.cursor='default'; if(t.dataset.view!=='torre') t.style.opacity='0.5'; });
+    // Pestanas superiores ACTIVAS: se puede navegar a Terreno/Mantenimiento/Avisos SEC.
+    // Solo se arranca fijo en Torre y sin rotacion automatica.
     var b=document.getElementById('btnRot'); if(b) b.style.display='none';
   }catch(e){ console.error(e); }
 })();
