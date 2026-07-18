@@ -88,7 +88,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 .cont-fotos .cf-head .cf-live{width:7px;height:7px;border-radius:50%;background:#7CFC00;box-shadow:0 0 6px #7CFC00;animation:cfBlink 1.4s infinite;}
 @keyframes cfBlink{0%,100%{opacity:1;}50%{opacity:.25;}}
 .cont-fotos .cf-stage{position:relative; width:100%; height:300px; background:#000; overflow:hidden;}
-.cont-fotos .cf-stage img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transform:translateX(42px) scale(1.06); transition:opacity .9s ease, transform 4.2s ease;}
+.cont-fotos .cf-stage img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transform:translateX(42px) scale(1.06); transition:opacity .9s ease, transform 4.2s ease;}
 .cont-fotos .cf-stage img.on{opacity:1; transform:translateX(0) scale(1);}
 .cont-fotos .cf-head .cf-cat{margin-left:auto; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:10px; background:rgba(255,255,255,.18); letter-spacing:.03em;}
 .cont-fotos .cf-cap{font-family:var(--mono); font-size:11.5px; color:#cfd3da; padding:6px 10px; display:flex; justify-content:space-between; gap:8px;}
