@@ -91,6 +91,10 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 .cont-fotos .cf-stage img{position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transform:translateX(42px) scale(1.06); transition:opacity .9s ease, transform 4.2s ease;}
 .cont-fotos .cf-stage img.on{opacity:1; transform:translateX(0) scale(1);}
 .cont-fotos .cf-head .cf-cat{margin-left:auto; font-size:9.5px; font-weight:700; padding:2px 7px; border-radius:10px; background:rgba(255,255,255,.18); letter-spacing:.03em;}
+.cont-fotos .cf-head .cf-toggle{display:flex; align-items:center; gap:4px; font-size:9.5px; font-weight:700; color:#fff; cursor:pointer; text-transform:none; letter-spacing:0; user-select:none;}
+.cont-fotos .cf-head .cf-toggle input{margin:0; cursor:pointer; accent-color:#fff;}
+.cont-fotos.cf-collapsed .cf-stage, .cont-fotos.cf-collapsed .cf-cap, .cont-fotos.cf-collapsed .cf-dots{display:none;}
+.cont-fotos.cf-collapsed .cf-cat{display:none;}
 .cont-fotos .cf-cap{font-family:var(--mono); font-size:11.5px; color:#cfd3da; padding:6px 10px; display:flex; justify-content:space-between; gap:8px;}
 .cont-fotos .cf-dots{display:flex; gap:4px; padding:0 10px 9px; flex-wrap:wrap;}
 .cont-fotos .cf-dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.28);transition:background .3s;}
@@ -332,7 +336,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
     <div class="scope-wrap">
       <div id="leaflet-map"></div>
       <div id="cont-fotos" class="cont-fotos">
-        <div class="cf-head"><span class="cf-live"></span> Fotos Terreno <span id="cf-cat" class="cf-cat"></span></div>
+        <div class="cf-head"><span class="cf-live"></span> Fotos Terreno <span id="cf-cat" class="cf-cat"></span><label class="cf-toggle" title="Mostrar / ocultar fotos"><input type="checkbox" id="cf-show" checked> ver</label></div>
         <div class="cf-stage" id="cf-stage"></div>
         <div class="cf-cap" id="cf-cap"></div>
         <div class="cf-dots" id="cf-dots"></div>
@@ -355,9 +359,10 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
         <div class="row"><svg width="18" height="18"><circle cx="9" cy="9" r="6" fill="#8b95a3" stroke="#05080a" stroke-width="1.5"/><circle cx="9" cy="9" r="8" fill="none" stroke="#B9770E" stroke-width="2" stroke-dasharray="3,2"/></svg> P3 — Media</div>
         <div class="row"><svg width="18" height="18"><circle cx="9" cy="9" r="6" fill="#8b95a3" stroke="#05080a" stroke-width="1.5"/></svg> P4 — Baja (sin anillo)</div>
         <hr>
-        <div class="legend-title">Tipo de orden</div>
-        <div class="row"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M1 13 L1 6 L7 1 L13 6 L13 13 Z" fill="#57d9e0" stroke="#05080a" stroke-width="1.3"/></svg> Domiciliaria (DOM) — casa</div>
-        <div class="row"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="4" fill="#f2a73b" stroke="#05080a" stroke-width="1.3"/><line x1="8" y1="3" x2="8" y2="13" stroke="#fff" stroke-width="1.4"/><line x1="4" y1="6" x2="12" y2="6" stroke="#fff" stroke-width="1.2"/><circle cx="4" cy="6" r="1" fill="#fff"/><circle cx="12" cy="6" r="1" fill="#fff"/></svg> Media tensión (MT) — poste</div>
+        <div class="legend-title">Tipo de orden (color del punto)</div>
+        <div class="row"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M1 13 L1 6 L7 1 L13 6 L13 13 Z" fill="#F7C81A" stroke="#05080a" stroke-width="1.3"/></svg> Domiciliaria (DOM) — amarillo</div>
+        <div class="row"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="4" fill="#F28C28" stroke="#05080a" stroke-width="1.3"/><line x1="8" y1="3" x2="8" y2="13" stroke="#fff" stroke-width="1.4"/><line x1="4" y1="6" x2="12" y2="6" stroke="#fff" stroke-width="1.2"/><circle cx="4" cy="6" r="1" fill="#fff"/><circle cx="12" cy="6" r="1" fill="#fff"/></svg> Red / Media tensión (MT) — naranjo</div>
+        <div class="row"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#E4141B" stroke="#05080a" stroke-width="1.3"/></svg> Electrodependiente — rojo</div>
         <hr>
         <div class="legend-title">Cliente crítico</div>
         <div class="row"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="none" stroke="#E0218A" stroke-width="2" stroke-dasharray="2,2"/><circle cx="9" cy="9" r="4.5" fill="#E0218A"/><text x="9" y="12" font-size="6" text-anchor="middle" fill="#fff">♥</text></svg> Electrodependiente — prioridad máxima</div>
@@ -511,6 +516,9 @@ function travelMinutes(km){ return (km*1.4)/25*60; }
 function hasCoords(e){ return e && e.lat!=null && e.lon!=null && !isNaN(e.lat) && !isNaN(e.lon); }
 function priorityClass(p){ if(p<=2) return 'p1'; if(p===3) return 'p3'; return 'p4'; }
 function priorityRingColor(p){ if(p<=2) return '#D2232A'; if(p===3) return '#B9770E'; return null; }
+// Color del punto por TIPO de orden (independiente del estado de despacho):
+//   Electrodependiente = rojo · Red (Media Tensión) = naranjo · Domiciliaria = amarillo
+function typeColor(o){ if(o && o.electrodependiente) return '#E4141B'; if(o && o.tipo==='MT') return '#F28C28'; return '#F7C81A'; }
 
 // Toma cualquier texto con un NIS (p.ej. "Cliente 006-1049083", "NIS: 001049083", "1049083")
 // y devuelve la clave numérica final sin ceros a la izquierda, para poder cruzar listas
@@ -805,7 +813,7 @@ function poleIconSvg(cx,cy,r,fill,stroke,strokeW,dash){
     + `<line x1="${cx-r*0.34}" y1="${cy+r*0.82}" x2="${cx+r*0.34}" y2="${cy+r*0.82}" stroke="${detail}" stroke-width="${csw}" stroke-linecap="round"/>`;
 }
 function orderDivIcon(order, selected){
-  const color = order.unassigned ? '#f2a73b' : STATUS_COLOR[order.estado];
+  const color = typeColor(order);
   const isMT = order.tipo === 'MT';
   const r = (selected ? 11 : (order.priority<=2 ? 9.5 : 8)) + (isMT ? 1.5 : 0);
   const prioColor = priorityRingColor(order.priority);
@@ -864,7 +872,7 @@ function renderEntities(){
     const sel = o.id===selectedOrderId;
     const isMT = o.tipo==='MT';
     const rad = (o.priority<=2?7:5) + (isMT?1.5:0) + (sel?3:0);
-    const fill = o.unassigned ? '#f2a73b' : (STATUS_COLOR[o.estado]||'#2B6CB0');
+    const fill = typeColor(o);
     const ring = o.electrodependiente ? '#E0218A' : (sel ? '#0E8DA6' : (priorityRingColor(o.priority)||'#ffffff'));
     const w = o.electrodependiente ? 3 : (sel?3:(o.priority<=2?2:1));
     const m = L.circleMarker([o.lat,o.lon], {radius:rad, weight:w, color:ring, fillColor:fill, fillOpacity:0.92})
@@ -1002,19 +1010,32 @@ function bindLogClicks(){
 }
 
 function renderUnidades(){
-  let html = '<div class="section-label">Unidades en cobertura</div>';
-  html += visibleCrews().map(c=>{
+  const crews = visibleCrews();
+  const hasAct = c=> state.orders.some(o=>o.crew===c.id);
+  const withAct = crews.filter(hasAct);
+  const noAct = crews.filter(c=>!hasAct(c));
+  let html = '<div class="section-label">Unidades de terreno — '+crews.length+' en cobertura</div>';
+  html += '<div style="display:flex;gap:8px;margin:0 0 11px;font-family:var(--mono);font-size:10.5px;">'
+    + '<span style="flex:1;background:rgba(31,157,85,.12);color:#1F9D55;border-radius:7px;padding:6px 8px;font-weight:700;text-align:center;">🛠 '+withAct.length+' con actividad</span>'
+    + '<span style="flex:1;background:rgba(185,119,14,.14);color:#B9770E;border-radius:7px;padding:6px 8px;font-weight:700;text-align:center;">⏸ '+noAct.length+' sin actividad</span>'
+    + '</div>';
+  const ordered = noAct.concat(withAct); // sin actividad primero para reasignar
+  html += ordered.map(c=>{
     const queue = state.orders.filter(o=>o.crew===c.id).length;
     const color = STATUS_TEXT_COLOR[c.status] || STATUS_COLOR[c.status];
+    const badge = queue>0
+      ? '<span style="background:rgba(31,157,85,.14);color:#1F9D55;font-weight:700;font-size:9.5px;padding:2px 7px;border-radius:9px;">'+queue+' actividad(es)</span>'
+      : '<span style="background:rgba(185,119,14,.16);color:#B9770E;font-weight:700;font-size:9.5px;padding:2px 7px;border-radius:9px;">sin actividad</span>';
+    const zona = c.zona ? (' · '+String(c.zona).replace('Zona_','').replace(/_/g,' ')) : '';
     return `<div class="crew-mini">
       <div class="crew-avatar" style="background:${color}22; color:${color};">${c.label.slice(0,2).toUpperCase()}</div>
       <div class="crew-info">
-        <div class="crew-name">${c.label}</div>
-        <div class="crew-status">${STATUS_LABEL[c.status]||c.status} · ${c.remaining} min restantes · ${queue} orden(es)${!hasCoords(c)?' · <span style="color:var(--amber)">posición desconocida</span>':''}</div>
+        <div class="crew-name">${c.label} ${badge}</div>
+        <div class="crew-status">${STATUS_LABEL[c.status]||c.status}${zona}${!hasCoords(c)?' · <span style="color:var(--amber)">posición desconocida</span>':''}</div>
       </div>
     </div>`;
   }).join('');
-  html += `<div class="note"><b>Nota de prototipo:</b> las unidades se ubican con la coordenada real de su orden actual sobre el mapa. En producción vendría de GPS/AVL del móvil en tiempo real. Los anillos y el barrido representan distancia geográfica real (metros), no una proyección abstracta.</div>`;
+  html += `<div class="note">Lista de unidades desplegadas con su estado y si tienen actividad asignada. Las <b>sin actividad</b> aparecen primero para facilitar su reasignación.</div>`;
   document.getElementById('tab-unidades').innerHTML = html;
 }
 
@@ -2257,6 +2278,17 @@ async function startContingenciaPanel(){
     const box=document.getElementById('cont-fotos'), stage=document.getElementById('cf-stage'), cap=document.getElementById('cf-cap'), dots=document.getElementById('cf-dots');
     if(!box) return;
     box.style.display='block';
+    // Casilla para mostrar/ocultar las fotos (persistente)
+    const showChk=document.getElementById('cf-show');
+    if(showChk){
+      const saved = localStorage.getItem('cfShow');
+      const on = saved===null ? true : saved==='1';
+      showChk.checked = on; box.classList.toggle('cf-collapsed', !on);
+      showChk.addEventListener('change', function(){
+        box.classList.toggle('cf-collapsed', !showChk.checked);
+        localStorage.setItem('cfShow', showChk.checked?'1':'0');
+      });
+    }
     const imgs=[document.createElement('img'),document.createElement('img')];
     imgs.forEach(im=>stage.appendChild(im));
     dots.innerHTML = fotos.map((_,k)=>'<i data-k="'+k+'"></i>').join('');
