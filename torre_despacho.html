@@ -469,8 +469,10 @@ function visibleOrders(){
   __voKey=__k; __voCache=list; __voRef=state.orders; return list;
 }
 function applyBitacoraFilter(list){
-  if(bitacoraTipoFilter==='DOM') return list.filter(o=>o.tipo==='DOM');
-  if(bitacoraTipoFilter==='MT') return list.filter(o=>o.tipo==='MT');
+  // Categorias mutuamente excluyentes: electrodependiente es su propia clase,
+  // por lo que DOM y MT (Red) NO incluyen ordenes electrodependientes.
+  if(bitacoraTipoFilter==='DOM') return list.filter(o=>o.tipo==='DOM' && !o.electrodependiente);
+  if(bitacoraTipoFilter==='MT') return list.filter(o=>o.tipo==='MT' && !o.electrodependiente);
   if(bitacoraTipoFilter==='SIN_ASIGNAR') return list.filter(o=>o.unassigned);
   if(bitacoraTipoFilter==='ELEC') return list.filter(o=>o.electrodependiente);
   return list;
@@ -959,13 +961,14 @@ function renderLog(){
   const noGeoOrders = orders.filter(o=>!hasCoords(o)).sort(byElecThenWait);
   const unassigned = orders.filter(o=>o.unassigned && hasCoords(o)).sort(byElecThenWait);
   const assigned = orders.filter(o=>!o.unassigned && hasCoords(o)).sort(byElecThenWait);
-  const domCount = visibleOrders().filter(o=>o.tipo==='DOM').length;
-  const mtCount = visibleOrders().filter(o=>o.tipo==='MT').length;
+  const domCount = visibleOrders().filter(o=>o.tipo==='DOM' && !o.electrodependiente).length;
+  const mtCount = visibleOrders().filter(o=>o.tipo==='MT' && !o.electrodependiente).length;
   const sinAsignarCount = visibleOrders().filter(o=>o.unassigned).length;
   const elecCount = visibleOrders().filter(o=>o.electrodependiente).length;
+  const totalCount = visibleOrders().length;
   let html = `
     <div class="tipo-filter">
-      <button class="tipo-btn ${bitacoraTipoFilter==='ALL'?'active':''}" data-tipo="ALL">Todas (${domCount+mtCount})</button>
+      <button class="tipo-btn ${bitacoraTipoFilter==='ALL'?'active':''}" data-tipo="ALL">Todas (${totalCount})</button>
       <button class="tipo-btn ${bitacoraTipoFilter==='DOM'?'active':''}" data-tipo="DOM">🏠 Domiciliarias (${domCount})</button>
       <button class="tipo-btn ${bitacoraTipoFilter==='MT'?'active':''}" data-tipo="MT">⚡ Red / MT (${mtCount})</button>
       <button class="tipo-btn ${bitacoraTipoFilter==='SIN_ASIGNAR'?'active':''}" data-tipo="SIN_ASIGNAR">⚠️ Sin asignar (${sinAsignarCount})</button>
