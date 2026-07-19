@@ -249,6 +249,21 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 .crew-info{flex:1; min-width:0;}
 .crew-name{font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-family:var(--mono);}
 .crew-status{font-size:10.5px; color:var(--muted);}
+/* Tablero (kanban) de moviles por estado */
+.uk-cover{display:flex; align-items:center; gap:6px; background:rgba(210,35,42,.09); border:1px solid rgba(210,35,42,.25); color:var(--red-dark); border-radius:8px; padding:7px 10px; font-size:11.5px; margin-bottom:10px;}
+.uk-board{display:flex; flex-wrap:wrap; gap:8px;}
+.uk-col{flex:1 1 150px; min-width:148px; background:var(--panel2); border:1px solid var(--border); border-radius:9px; overflow:hidden; display:flex; flex-direction:column;}
+.uk-head{display:flex; align-items:center; justify-content:space-between; gap:6px; padding:6px 9px; font-family:var(--mono); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; border-bottom:1px solid var(--border);}
+.uk-head .uk-cnt{background:currentColor; color:#fff; border-radius:10px; padding:1px 7px; font-size:10px;}
+.uk-head .uk-cnt{-webkit-text-fill-color:#fff;}
+.uk-body{padding:6px; display:flex; flex-direction:column; gap:5px; max-height:340px; overflow-y:auto;}
+.uk-card{display:flex; align-items:center; gap:7px; background:#fff; border:1px solid var(--border); border-radius:7px; padding:5px 7px; cursor:pointer; transition:border-color .12s, box-shadow .12s;}
+.uk-card:hover{border-color:var(--cyan); box-shadow:0 1px 6px rgba(0,0,0,.08);}
+.uk-av{width:24px; height:24px; border-radius:5px; display:flex; align-items:center; justify-content:center; font-family:var(--mono); font-weight:700; font-size:10px; flex-shrink:0;}
+.uk-meta{flex:1; min-width:0;}
+.uk-name{font-family:var(--mono); font-size:11px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.uk-sub{font-size:9.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.uk-empty{font-size:10px; color:var(--muted); text-align:center; padding:8px 0; font-style:italic;}
 
 .weather-strip{display:flex; align-items:center; gap:10px; padding:6px 14px; background:linear-gradient(180deg,#fbfbfc,#f3f4f6); border-bottom:1px solid var(--border); overflow-x:auto;}
 .weather-strip-label{font-family:var(--mono); font-size:9.5px; color:var(--red-dark); text-transform:uppercase; letter-spacing:.08em; flex-shrink:0; font-weight:700; display:flex; align-items:center; gap:5px;}
@@ -1014,32 +1029,37 @@ function bindLogClicks(){
 
 function renderUnidades(){
   const crews = visibleCrews();
-  const hasAct = c=> state.orders.some(o=>o.crew===c.id);
-  const withAct = crews.filter(hasAct);
-  const noAct = crews.filter(c=>!hasAct(c));
-  let html = '<div class="section-label">Unidades de terreno — '+crews.length+' en cobertura</div>';
-  html += '<div style="display:flex;gap:8px;margin:0 0 11px;font-family:var(--mono);font-size:10.5px;">'
-    + '<span style="flex:1;background:rgba(31,157,85,.12);color:#1F9D55;border-radius:7px;padding:6px 8px;font-weight:700;text-align:center;">🛠 '+withAct.length+' con actividad</span>'
-    + '<span style="flex:1;background:rgba(185,119,14,.14);color:#B9770E;border-radius:7px;padding:6px 8px;font-weight:700;text-align:center;">⏸ '+noAct.length+' sin actividad</span>'
-    + '</div>';
-  const ordered = noAct.concat(withAct); // sin actividad primero para reasignar
-  html += ordered.map(c=>{
-    const queue = state.orders.filter(o=>o.crew===c.id).length;
-    const color = STATUS_TEXT_COLOR[c.status] || STATUS_COLOR[c.status];
-    const badge = queue>0
-      ? '<span style="background:rgba(31,157,85,.14);color:#1F9D55;font-weight:700;font-size:9.5px;padding:2px 7px;border-radius:9px;">'+queue+' actividad(es)</span>'
-      : '<span style="background:rgba(185,119,14,.16);color:#B9770E;font-weight:700;font-size:9.5px;padding:2px 7px;border-radius:9px;">sin actividad</span>';
-    const zona = c.zona ? (' · '+String(c.zona).replace('Zona_','').replace(/_/g,' ')) : '';
-    return `<div class="crew-mini">
-      <div class="crew-avatar" style="background:${color}22; color:${color};">${c.label.slice(0,2).toUpperCase()}</div>
-      <div class="crew-info">
-        <div class="crew-name">${c.label} ${badge}</div>
-        <div class="crew-status">${STATUS_LABEL[c.status]||c.status}${zona}${!hasCoords(c)?' · <span style="color:var(--amber)">posición desconocida</span>':''}</div>
-      </div>
+  const qn = c => state.orders.filter(o=>o.crew===c.id).length;
+  const zLbl = z => z ? String(z).replace('Zona_','').replace(/_/g,' ') : '—';
+  const enSitio = crews.filter(c=> c.status==='llego' || c.status==='en_progreso');
+  const enRuta  = crews.filter(c=> c.status==='en_camino' || c.status==='despachado' || c.status==='nuevo');
+  const sinAct  = crews.filter(c=> qn(c)===0);
+  const sinUnidad = state.orders.filter(o=>o.unassigned).length;
+  const card = c => {
+    const color = STATUS_TEXT_COLOR[c.status] || '#2B6CB0';
+    const n = qn(c);
+    return `<div class="uk-card" data-crew="${c.id}">
+      <div class="uk-av" style="background:${color}1f;color:${color};">${c.label.slice(0,2).toUpperCase()}</div>
+      <div class="uk-meta"><div class="uk-name">${c.label}</div>
+      <div class="uk-sub">${zLbl(c.zona)} · ${n>0?(n+' act.'):'sin act.'}${!hasCoords(c)?' · s/GPS':''}</div></div>
     </div>`;
-  }).join('');
-  html += `<div class="note">Lista de unidades desplegadas con su estado y si tienen actividad asignada. Las <b>sin actividad</b> aparecen primero para facilitar su reasignación.</div>`;
+  };
+  const col = (title, icon, colr, arr) => `
+    <div class="uk-col">
+      <div class="uk-head" style="background:${colr}14; color:${colr}; border-bottom-color:${colr}44;">
+        <span>${icon} ${title}</span><span class="uk-cnt">${arr.length}</span></div>
+      <div class="uk-body">${arr.length? arr.map(card).join('') : '<div class="uk-empty">— sin móviles —</div>'}</div>
+    </div>`;
+  let html = '<div class="section-label">Móviles en terreno — '+crews.length+'</div>';
+  html += '<div class="uk-cover">🚨 <span><b>'+sinUnidad.toLocaleString('es-CL')+'</b> órdenes sin unidad asignada · <b>'+crews.length+'</b> móviles activos</span></div>';
+  html += '<div class="uk-board">'
+    + col('En sitio · trabajando','🛠','#1F9D55', enSitio)
+    + col('En camino / despachado','🚚','#2B6CB0', enRuta)
+    + col('Sin actividad','⏸','#B9770E', sinAct)
+    + '</div>';
+  html += '<div class="note">Los móviles se agrupan por estado operativo. La columna <b>Sin actividad</b> se activa cuando una unidad queda libre (sin orden asignada). Haz clic en una tarjeta para ubicar su orden en el mapa.</div>';
   document.getElementById('tab-unidades').innerHTML = html;
+  document.querySelectorAll('#tab-unidades .uk-card').forEach(el=>el.addEventListener('click',()=>{ const oo=state.orders.find(o=>o.crew===el.dataset.crew); if(oo) selectOrder(oo.id); }));
 }
 
 const PRIORITY_MULT = {1:4, 2:3, 3:2, 4:1};
