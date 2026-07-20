@@ -1368,13 +1368,50 @@ function renderMatrix(){
       <tr class="total"><td class="rowlabel">Total</td>${cell(tSa)}${cell(tRu)}${cell(tSi)}${cell(tTo)}</tr>
     </table>
     <div class="note" style="margin-top:8px;"><b>${etLbl}</b> · mostrando <b>${metLbl}</b> · <b>S/asig</b>: sin cuadrilla · <b>En ruta</b>: despachada / en camino · <b>En sitio</b>: cuadrilla trabajando.</div>`;
+  function ageLabel(hoursFloat){
+    const totalMin = Math.max(0, Math.round(hoursFloat*60));
+    const d = Math.floor(totalMin/1440), h = Math.floor((totalMin%1440)/60);
+    return d>0 ? d+'d '+h+'h' : h+'h';
+  }
+  const AGE_BANDS = [
+    {lo:0,  hi:6,        lbl:'0 – 6 h'},
+    {lo:6,  hi:15,       lbl:'6 – 15 h'},
+    {lo:15, hi:24,       lbl:'15 – 24 h'},
+    {lo:24, hi:48,       lbl:'24 – 48 h'},
+    {lo:48, hi:Infinity, lbl:'+ 48 h'},
+  ];
+  const ordersWithAge = orders.map(o=>Object.assign({_h:esperaMinutes(o.espera)/60}, o));
+  const antigRows = AGE_BANDS.map(b=>{
+    const list = ordersWithAge.filter(o=>o._h>=b.lo && o._h<b.hi);
+    const dom = list.filter(o=>o.tipo==='DOM').length;
+    const mt = list.filter(o=>o.tipo==='MT').length;
+    const elec = list.filter(o=>o.electrodependiente).length;
+    const cli = list.reduce((s,o)=>s+(o.clientes||0),0);
+    return {lbl:b.lbl, dom, mt, elec, total:list.length, cli};
+  });
+  const totAntigDom = antigRows.reduce((s,r)=>s+r.dom,0);
+  const totAntigMt = antigRows.reduce((s,r)=>s+r.mt,0);
+  const totAntigElec = antigRows.reduce((s,r)=>s+r.elec,0);
+  const totAntigOrd = antigRows.reduce((s,r)=>s+r.total,0);
+  const totAntigCli = antigRows.reduce((s,r)=>s+r.cli,0);
+  const avgAgeH = ordersWithAge.length ? ordersWithAge.reduce((s,o)=>s+o._h,0)/ordersWithAge.length : 0;
+  const oldest = ordersWithAge.slice().sort((a,b)=>b._h-a._h)[0];
+  const antigHtml = `
+    <table class="matrix">
+      <tr><th style="text-align:left;">Antigüedad</th><th>🏠 DOM</th><th>⚡ MT</th><th>♥ Elec.</th><th>📋 Órdenes</th><th>👥 Clientes</th></tr>
+      ${antigRows.map(r=>`<tr class="${r.lbl==='+ 48 h'&&r.total>0?'p1-row':''}"><td class="rowlabel">${r.lbl}</td>${cell(r.dom)}${cell(r.mt)}${cellElec(r.elec)}${cell(r.total)}${cell(r.cli)}</tr>`).join('')}
+      <tr class="total"><td class="rowlabel">Total</td>${cell(totAntigDom)}${cell(totAntigMt)}${cellElec(totAntigElec)}${cell(totAntigOrd)}${cell(totAntigCli)}</tr>
+    </table>
+    <div class="note" style="margin-top:8px;">Antigüedad = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}). Antigüedad promedio: <b>${ageLabel(avgAgeH)}</b>${oldest?` · Orden más antigua: <b>#${escHtml(oldest.id)}</b> (${ageLabel(oldest._h)}, ${oldest.clientes||0} cliente(s))`:''}. Usa este tramo para priorizar y redistribuir recursos hacia las órdenes con mayor espera.</div>
+  `;
   const tabsHtml=`
     <div class="matrix-tabs">
       <button class="mtab ${matrixView==='prio'?'active':''}" data-v="prio">Prioridad y tipo</button>
       <button class="mtab ${matrixView==='zona'?'active':''}" data-v="zona">Unidades por zona</button>
       <button class="mtab ${matrixView==='estado'?'active':''}" data-v="estado">Estado por zona</button>
+      <button class="mtab ${matrixView==='antig'?'active':''}" data-v="antig">Antigüedad</button>
     </div>`;
-  const body = matrixView==='zona' ? zonaHtml : (matrixView==='estado' ? estadoHtml : html);
+  const body = matrixView==='zona' ? zonaHtml : (matrixView==='estado' ? estadoHtml : (matrixView==='antig' ? antigHtml : html));
   document.getElementById('priority-matrix').innerHTML = `<div class="matrix-wrap">${tabsHtml}${body}</div>`;
   document.querySelectorAll('#priority-matrix .mtab').forEach(b=>b.addEventListener('click',()=>{ matrixView=b.dataset.v; renderMatrix(); }));
   document.querySelectorAll('#priority-matrix .stab[data-t]').forEach(b=>b.addEventListener('click',()=>{ estadoTipo=b.dataset.t; renderMatrix(); }));
