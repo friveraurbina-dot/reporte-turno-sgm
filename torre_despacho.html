@@ -338,6 +338,14 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
         <option value="confirmed">Solo Confirmadas</option>
         <option value="predicted">Solo Predichas</option>
       </select>
+      <select id="age-select" class="zona-select" title="Filtrar por antigüedad de la orden (creación → hora de consulta)">
+        <option value="ALL">Toda antigüedad</option>
+        <option value="0-6">0 – 6 h</option>
+        <option value="6-15">6 – 15 h</option>
+        <option value="15-24">15 – 24 h</option>
+        <option value="24-48">24 – 48 h</option>
+        <option value="48+">+ 48 h</option>
+      </select>
       <div class="hud-strip" id="hud-bar"></div>
     </div>
   </div>
@@ -483,14 +491,28 @@ function visibleOrders(){
   if(selectedIncidentStatus !== 'ALL') list = list.filter(o=>o.incidentStatus===selectedIncidentStatus);
   __voKey=__k; __voCache=list; __voRef=state.orders; return list;
 }
+let mapAgeFilter = 'ALL';
+function esperaHoras(o){ return esperaMinutes(o.espera)/60; }
+function matchesAgeBand(o){
+  if(mapAgeFilter==='ALL') return true;
+  const h = esperaHoras(o);
+  if(mapAgeFilter==='0-6') return h>=0 && h<6;
+  if(mapAgeFilter==='6-15') return h>=6 && h<15;
+  if(mapAgeFilter==='15-24') return h>=15 && h<24;
+  if(mapAgeFilter==='24-48') return h>=24 && h<48;
+  if(mapAgeFilter==='48+') return h>=48;
+  return true;
+}
 function applyBitacoraFilter(list){
   // Categorias mutuamente excluyentes: electrodependiente es su propia clase,
   // por lo que DOM y MT (Red) NO incluyen ordenes electrodependientes.
-  if(bitacoraTipoFilter==='DOM') return list.filter(o=>o.tipo==='DOM' && !o.electrodependiente);
-  if(bitacoraTipoFilter==='MT') return list.filter(o=>o.tipo==='MT' && !o.electrodependiente);
-  if(bitacoraTipoFilter==='SIN_ASIGNAR') return list.filter(o=>o.unassigned);
-  if(bitacoraTipoFilter==='ELEC') return list.filter(o=>o.electrodependiente);
-  return list;
+  let out = list;
+  if(bitacoraTipoFilter==='DOM') out = out.filter(o=>o.tipo==='DOM' && !o.electrodependiente);
+  else if(bitacoraTipoFilter==='MT') out = out.filter(o=>o.tipo==='MT' && !o.electrodependiente);
+  else if(bitacoraTipoFilter==='SIN_ASIGNAR') out = out.filter(o=>o.unassigned);
+  else if(bitacoraTipoFilter==='ELEC') out = out.filter(o=>o.electrodependiente);
+  // Antigüedad: combinable con zona (selectedZona) y tipo (bitacoraTipoFilter) — filtra el mapa y la bitácora en vivo.
+  return out.filter(matchesAgeBand);
 }
 function visibleOrdersOnMap(){
   return applyBitacoraFilter(visibleOrders());
@@ -989,7 +1011,7 @@ function renderLog(){
       <button class="tipo-btn ${bitacoraTipoFilter==='SIN_ASIGNAR'?'active':''}" data-tipo="SIN_ASIGNAR">⚠️ Sin asignar (${sinAsignarCount})</button>
       <button class="tipo-btn ${bitacoraTipoFilter==='ELEC'?'active':''}" data-tipo="ELEC" style="${bitacoraTipoFilter==='ELEC'?'':'color:#E0218A;'}">❤ Electrodep. (${elecCount})</button>
     </div>
-    <div class="sort-note">Ordenado por espera: más antigua primero${bitacoraTipoFilter==='SIN_ASIGNAR'?' · mostrando solo contactos sin unidad asignada':''}${bitacoraTipoFilter==='ELEC'?' · mostrando solo clientes electrodependientes':''} · electrodependientes siempre primero</div>`;
+    <div class="sort-note">Ordenado por espera: más antigua primero${bitacoraTipoFilter==='SIN_ASIGNAR'?' · mostrando solo contactos sin unidad asignada':''}${bitacoraTipoFilter==='ELEC'?' · mostrando solo clientes electrodependientes':''}${mapAgeFilter!=='ALL'?' · filtro de antigüedad activo ('+({'0-6':'0–6 h','6-15':'6–15 h','15-24':'15–24 h','24-48':'24–48 h','48+':'+48 h'}[mapAgeFilter])+')':''} · electrodependientes siempre primero</div>`;
   if(noGeoOrders.length){
     html += `<div class="section-label">Pendientes de georreferenciar (${noGeoOrders.length})</div>`;
     html += noGeoOrders.map(o=>logCardHtml(o)).join('');
@@ -1304,7 +1326,7 @@ function switchTab(tab){
   if(tab==='electrodep') renderElectrodep();
 }
 
-let matrixView='estado', estadoTipo='ALL', estadoMetric='ord';
+let matrixView='estado', estadoTipo='ALL', estadoMetric='ord', antigZona='ALL';
 function renderMatrix(){
   const orders = visibleOrders();
   const rows = [1,2,3,4].map(p=>{
@@ -1380,7 +1402,13 @@ function renderMatrix(){
     {lo:24, hi:48,       lbl:'24 – 48 h'},
     {lo:48, hi:Infinity, lbl:'+ 48 h'},
   ];
-  const ordersWithAge = orders.map(o=>Object.assign({_h:esperaMinutes(o.espera)/60}, o));
+  const antigZonasList = Array.from(new Set(state.orders.map(o=>o.zona))).filter(Boolean).sort();
+  const antigZonaPills = `<div class="est-tipo">
+      <button class="stab azpill ${antigZona==='ALL'?'active':''}" data-az="ALL">Todas las zonas</button>
+      ${antigZonasList.map(z=>`<button class="stab azpill ${antigZona===z?'active':''}" data-az="${z}">${zonaLabel(z)}</button>`).join('')}
+    </div>`;
+  const ordersAntigZona = antigZona==='ALL' ? orders : orders.filter(o=>o.zona===antigZona);
+  const ordersWithAge = ordersAntigZona.map(o=>Object.assign({_h:esperaMinutes(o.espera)/60}, o));
   const antigRows = AGE_BANDS.map(b=>{
     const list = ordersWithAge.filter(o=>o._h>=b.lo && o._h<b.hi);
     const dom = list.filter(o=>o.tipo==='DOM').length;
@@ -1397,12 +1425,13 @@ function renderMatrix(){
   const avgAgeH = ordersWithAge.length ? ordersWithAge.reduce((s,o)=>s+o._h,0)/ordersWithAge.length : 0;
   const oldest = ordersWithAge.slice().sort((a,b)=>b._h-a._h)[0];
   const antigHtml = `
+    ${antigZonaPills}
     <table class="matrix">
       <tr><th style="text-align:left;">Antigüedad</th><th>🏠 DOM</th><th>⚡ MT</th><th>♥ Elec.</th><th>📋 Órdenes</th><th>👥 Clientes</th></tr>
       ${antigRows.map(r=>`<tr class="${r.lbl==='+ 48 h'&&r.total>0?'p1-row':''}"><td class="rowlabel">${r.lbl}</td>${cell(r.dom)}${cell(r.mt)}${cellElec(r.elec)}${cell(r.total)}${cell(r.cli)}</tr>`).join('')}
       <tr class="total"><td class="rowlabel">Total</td>${cell(totAntigDom)}${cell(totAntigMt)}${cellElec(totAntigElec)}${cell(totAntigOrd)}${cell(totAntigCli)}</tr>
     </table>
-    <div class="note" style="margin-top:8px;">Antigüedad = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}). Antigüedad promedio: <b>${ageLabel(avgAgeH)}</b>${oldest?` · Orden más antigua: <b>#${escHtml(oldest.id)}</b> (${ageLabel(oldest._h)}, ${oldest.clientes||0} cliente(s))`:''}. Usa este tramo para priorizar y redistribuir recursos hacia las órdenes con mayor espera.</div>
+    <div class="note" style="margin-top:8px;"><b>${antigZona==='ALL'?'Todas las zonas':zonaLabel(antigZona)}</b> · Antigüedad = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}). Antigüedad promedio: <b>${ageLabel(avgAgeH)}</b>${oldest?` · Orden más antigua: <b>#${escHtml(oldest.id)}</b> (${ageLabel(oldest._h)}, ${oldest.clientes||0} cliente(s))`:''}. Usa este tramo para priorizar y redistribuir recursos hacia las órdenes con mayor espera.</div>
   `;
   const tabsHtml=`
     <div class="matrix-tabs">
@@ -1416,6 +1445,7 @@ function renderMatrix(){
   document.querySelectorAll('#priority-matrix .mtab').forEach(b=>b.addEventListener('click',()=>{ matrixView=b.dataset.v; renderMatrix(); }));
   document.querySelectorAll('#priority-matrix .stab[data-t]').forEach(b=>b.addEventListener('click',()=>{ estadoTipo=b.dataset.t; renderMatrix(); }));
   document.querySelectorAll('#priority-matrix .mmtab').forEach(b=>b.addEventListener('click',()=>{ estadoMetric=b.dataset.m; renderMatrix(); }));
+  document.querySelectorAll('#priority-matrix .azpill').forEach(b=>b.addEventListener('click',()=>{ antigZona=b.dataset.az; renderMatrix(); }));
 }
 
 function renderAll(){
@@ -1428,7 +1458,9 @@ function renderAll(){
   if(activeTab==='electrodep') renderElectrodep();
   updateRings();
   renderEntities();
-  document.getElementById('status-line').textContent = `${visibleOrders().length} contactos · ${visibleCrews().length} unidades · ${zonaLabel(selectedZona)} · radio de escaneo ${MAX_RANGE} km real`;
+  const AGE_FILTER_LABEL = {'ALL':null,'0-6':'0–6 h','6-15':'6–15 h','15-24':'15–24 h','24-48':'24–48 h','48+':'+48 h'};
+  const ageLbl = AGE_FILTER_LABEL[mapAgeFilter];
+  document.getElementById('status-line').textContent = `${visibleOrdersOnMap().length} contactos · ${visibleCrews().length} unidades · ${zonaLabel(selectedZona)}${ageLbl?' · antigüedad '+ageLbl:''} · radio de escaneo ${MAX_RANGE} km real`;
 }
 
 function fitMapToData(){
@@ -2266,6 +2298,12 @@ document.getElementById('incident-select').addEventListener('change', (e)=>{
   computeCenter();
   renderAll();
   fitMapToData();
+});
+document.getElementById('age-select').addEventListener('change', (e)=>{
+  mapAgeFilter = e.target.value;
+  selectedOrderId = null;
+  clearRankLines();
+  renderAll();
 });
 
 const ZONA_WEATHER_COORDS = {
