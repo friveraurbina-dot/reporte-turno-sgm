@@ -355,6 +355,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
       <button class="fpill ftype" data-ft="DOM">🏠 Domiciliaria</button>
       <button class="fpill ftype" data-ft="MT">⚡ Red / MT</button>
       <button class="fpill ftype" data-ft="ELEC" style="color:#E0218A;">♥ Electrodep.</button>
+      <button class="fpill ftype" data-ft="RREE">🚚 Tipo de Móvil (RREE)</button>
     </div>
     <div class="filter-group">
       <span class="filter-label">Antigüedad (selección múltiple):</span>
@@ -531,6 +532,9 @@ function syncFilterStrip(){
     b.classList.toggle('active', band==='ALL' ? mapAgeFilters.size===0 : mapAgeFilters.has(band));
   });
 }
+function rreeCrewIds(){
+  return new Set((state.crews||[]).filter(c=>c.tipoMovil==='RREE').map(c=>c.id));
+}
 function applyBitacoraFilter(list){
   // Categorias mutuamente excluyentes: electrodependiente es su propia clase,
   // por lo que DOM y MT (Red) NO incluyen ordenes electrodependientes.
@@ -539,13 +543,18 @@ function applyBitacoraFilter(list){
   else if(bitacoraTipoFilter==='MT') out = out.filter(o=>o.tipo==='MT' && !o.electrodependiente);
   else if(bitacoraTipoFilter==='SIN_ASIGNAR') out = out.filter(o=>o.unassigned);
   else if(bitacoraTipoFilter==='ELEC') out = out.filter(o=>o.electrodependiente);
+  else if(bitacoraTipoFilter==='RREE'){ const ids = rreeCrewIds(); out = out.filter(o=> ids.has(o.crew)); }
   // Antigüedad: combinable con zona (selectedZona) y tipo (bitacoraTipoFilter) — filtra el mapa y la bitácora en vivo.
   return out.filter(matchesAgeBand);
 }
 function visibleOrdersOnMap(){
   return applyBitacoraFilter(visibleOrders());
 }
-function visibleCrews(){ return selectedZona==='ALL' ? state.crews : state.crews.filter(c=>c.zona===selectedZona); }
+function visibleCrews(){
+  let list = selectedZona==='ALL' ? state.crews : state.crews.filter(c=>c.zona===selectedZona);
+  if(bitacoraTipoFilter==='RREE') list = list.filter(c=>c.tipoMovil==='RREE');
+  return list;
+}
 function zonaLabel(z){ return z==='ALL' ? 'Todas las zonas' : z.replace('Zona_','').replace(/_/g,' '); }
 function populateZonaSelect(){
   const zonas = Array.from(new Set(state.orders.map(o=>o.zona))).sort();
@@ -1031,6 +1040,8 @@ function renderLog(){
   const sinAsignarCount = visibleOrders().filter(o=>o.unassigned).length;
   const elecCount = visibleOrders().filter(o=>o.electrodependiente).length;
   const totalCount = visibleOrders().length;
+  const rreeIds = rreeCrewIds();
+  const rreeCount = visibleOrders().filter(o=>rreeIds.has(o.crew)).length;
   let html = `
     <div class="tipo-filter">
       <button class="tipo-btn ${bitacoraTipoFilter==='ALL'?'active':''}" data-tipo="ALL">Todas (${totalCount})</button>
@@ -1038,8 +1049,9 @@ function renderLog(){
       <button class="tipo-btn ${bitacoraTipoFilter==='MT'?'active':''}" data-tipo="MT">⚡ Red / MT (${mtCount})</button>
       <button class="tipo-btn ${bitacoraTipoFilter==='SIN_ASIGNAR'?'active':''}" data-tipo="SIN_ASIGNAR">⚠️ Sin asignar (${sinAsignarCount})</button>
       <button class="tipo-btn ${bitacoraTipoFilter==='ELEC'?'active':''}" data-tipo="ELEC" style="${bitacoraTipoFilter==='ELEC'?'':'color:#E0218A;'}">❤ Electrodep. (${elecCount})</button>
+      <button class="tipo-btn ${bitacoraTipoFilter==='RREE'?'active':''}" data-tipo="RREE">🚚 Tipo de Móvil · RREE (${rreeCount})</button>
     </div>
-    <div class="sort-note">Ordenado por espera: más antigua primero${bitacoraTipoFilter==='SIN_ASIGNAR'?' · mostrando solo contactos sin unidad asignada':''}${bitacoraTipoFilter==='ELEC'?' · mostrando solo clientes electrodependientes':''}${mapAgeFilters.size?' · filtro de antigüedad activo ('+Array.from(mapAgeFilters).map(b=>AGE_BAND_LABEL[b]).join(' / ')+')':''} · electrodependientes siempre primero</div>`;
+    <div class="sort-note">Ordenado por espera: más antigua primero${bitacoraTipoFilter==='SIN_ASIGNAR'?' · mostrando solo contactos sin unidad asignada':''}${bitacoraTipoFilter==='ELEC'?' · mostrando solo clientes electrodependientes':''}${bitacoraTipoFilter==='RREE'?' · mostrando solo actividades de móviles RREE':''}${mapAgeFilters.size?' · filtro de antigüedad activo ('+Array.from(mapAgeFilters).map(b=>AGE_BAND_LABEL[b]).join(' / ')+')':''} · electrodependientes siempre primero</div>`;
   if(noGeoOrders.length){
     html += `<div class="section-label">Pendientes de georreferenciar (${noGeoOrders.length})</div>`;
     html += noGeoOrders.map(o=>logCardHtml(o)).join('');
