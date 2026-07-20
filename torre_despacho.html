@@ -50,6 +50,12 @@
 .brand h1{font-family:var(--display); font-size:19px; margin:0; font-weight:700; letter-spacing:.01em; color:#fff; display:flex; align-items:center; gap:10px;}
 .version-badge{font-family:var(--body); font-size:11px; font-weight:700; color:#fff; background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.3); border-radius:6px; padding:3px 9px;}
 .hud-strip{display:flex; gap:8px;}
+#filter-strip{display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:8px 22px; background:var(--panel2,#12161b); border-bottom:1px solid var(--border,#232a31);}
+#filter-strip .filter-group{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+#filter-strip .filter-label{font-family:var(--body); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted,#8b95a3); margin-right:2px;}
+#filter-strip .fpill{background:transparent; border:1px solid var(--border,#2a323b); color:var(--muted,#a7b0bb); font-family:var(--body); font-size:11px; font-weight:600; padding:4px 10px; border-radius:14px; cursor:pointer; line-height:1.3;}
+#filter-strip .fpill.active{background:var(--red,#D2232A); color:#fff; border-color:var(--red,#D2232A);}
+#filter-strip .fage.active{background:#0E8DA6; border-color:#0E8DA6;}
 .hud{background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); border-radius:8px; padding:7px 13px; min-width:80px;}
 .hud .n{font-family:var(--mono); font-size:19px; font-weight:700; letter-spacing:.02em; color:#fff;}
 .hud .l{font-size:9.5px; color:rgba(255,255,255,.75); text-transform:uppercase; letter-spacing:.07em; margin-top:2px;}
@@ -338,15 +344,26 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
         <option value="confirmed">Solo Confirmadas</option>
         <option value="predicted">Solo Predichas</option>
       </select>
-      <select id="age-select" class="zona-select" title="Filtrar por antigüedad de la orden (creación → hora de consulta)">
-        <option value="ALL">Toda antigüedad</option>
-        <option value="0-6">0 – 6 h</option>
-        <option value="6-15">6 – 15 h</option>
-        <option value="15-24">15 – 24 h</option>
-        <option value="24-48">24 – 48 h</option>
-        <option value="48+">+ 48 h</option>
-      </select>
       <div class="hud-strip" id="hud-bar"></div>
+    </div>
+  </div>
+
+  <div class="filter-strip" id="filter-strip">
+    <div class="filter-group">
+      <span class="filter-label">Tipo:</span>
+      <button class="fpill ftype active" data-ft="ALL">Todas</button>
+      <button class="fpill ftype" data-ft="DOM">🏠 Domiciliaria</button>
+      <button class="fpill ftype" data-ft="MT">⚡ Red / MT</button>
+      <button class="fpill ftype" data-ft="ELEC" style="color:#E0218A;">♥ Electrodep.</button>
+    </div>
+    <div class="filter-group">
+      <span class="filter-label">Antigüedad (selección múltiple):</span>
+      <button class="fpill fage active" data-fa="ALL">Todas</button>
+      <button class="fpill fage" data-fa="0-6">0 – 6 h</button>
+      <button class="fpill fage" data-fa="6-15">6 – 15 h</button>
+      <button class="fpill fage" data-fa="15-24">15 – 24 h</button>
+      <button class="fpill fage" data-fa="24-48">24 – 48 h</button>
+      <button class="fpill fage" data-fa="48+">+ 48 h</button>
     </div>
   </div>
 
@@ -491,17 +508,28 @@ function visibleOrders(){
   if(selectedIncidentStatus !== 'ALL') list = list.filter(o=>o.incidentStatus===selectedIncidentStatus);
   __voKey=__k; __voCache=list; __voRef=state.orders; return list;
 }
-let mapAgeFilter = 'ALL';
+let mapAgeFilters = new Set(); // vacio = todas las antigüedades; selección múltiple (OR)
+const AGE_BAND_TEST = {
+  '0-6':  h => h>=0  && h<6,
+  '6-15': h => h>=6  && h<15,
+  '15-24':h => h>=15 && h<24,
+  '24-48':h => h>=24 && h<48,
+  '48+':  h => h>=48,
+};
+const AGE_BAND_LABEL = {'0-6':'0–6 h','6-15':'6–15 h','15-24':'15–24 h','24-48':'24–48 h','48+':'+48 h'};
 function esperaHoras(o){ return esperaMinutes(o.espera)/60; }
 function matchesAgeBand(o){
-  if(mapAgeFilter==='ALL') return true;
+  if(mapAgeFilters.size===0) return true;
   const h = esperaHoras(o);
-  if(mapAgeFilter==='0-6') return h>=0 && h<6;
-  if(mapAgeFilter==='6-15') return h>=6 && h<15;
-  if(mapAgeFilter==='15-24') return h>=15 && h<24;
-  if(mapAgeFilter==='24-48') return h>=24 && h<48;
-  if(mapAgeFilter==='48+') return h>=48;
-  return true;
+  for(const band of mapAgeFilters){ if(AGE_BAND_TEST[band] && AGE_BAND_TEST[band](h)) return true; }
+  return false;
+}
+function syncFilterStrip(){
+  document.querySelectorAll('#filter-strip .ftype').forEach(b=> b.classList.toggle('active', b.dataset.ft===bitacoraTipoFilter));
+  document.querySelectorAll('#filter-strip .fage').forEach(b=>{
+    const band = b.dataset.fa;
+    b.classList.toggle('active', band==='ALL' ? mapAgeFilters.size===0 : mapAgeFilters.has(band));
+  });
 }
 function applyBitacoraFilter(list){
   // Categorias mutuamente excluyentes: electrodependiente es su propia clase,
@@ -1011,7 +1039,7 @@ function renderLog(){
       <button class="tipo-btn ${bitacoraTipoFilter==='SIN_ASIGNAR'?'active':''}" data-tipo="SIN_ASIGNAR">⚠️ Sin asignar (${sinAsignarCount})</button>
       <button class="tipo-btn ${bitacoraTipoFilter==='ELEC'?'active':''}" data-tipo="ELEC" style="${bitacoraTipoFilter==='ELEC'?'':'color:#E0218A;'}">❤ Electrodep. (${elecCount})</button>
     </div>
-    <div class="sort-note">Ordenado por espera: más antigua primero${bitacoraTipoFilter==='SIN_ASIGNAR'?' · mostrando solo contactos sin unidad asignada':''}${bitacoraTipoFilter==='ELEC'?' · mostrando solo clientes electrodependientes':''}${mapAgeFilter!=='ALL'?' · filtro de antigüedad activo ('+({'0-6':'0–6 h','6-15':'6–15 h','15-24':'15–24 h','24-48':'24–48 h','48+':'+48 h'}[mapAgeFilter])+')':''} · electrodependientes siempre primero</div>`;
+    <div class="sort-note">Ordenado por espera: más antigua primero${bitacoraTipoFilter==='SIN_ASIGNAR'?' · mostrando solo contactos sin unidad asignada':''}${bitacoraTipoFilter==='ELEC'?' · mostrando solo clientes electrodependientes':''}${mapAgeFilters.size?' · filtro de antigüedad activo ('+Array.from(mapAgeFilters).map(b=>AGE_BAND_LABEL[b]).join(' / ')+')':''} · electrodependientes siempre primero</div>`;
   if(noGeoOrders.length){
     html += `<div class="section-label">Pendientes de georreferenciar (${noGeoOrders.length})</div>`;
     html += noGeoOrders.map(o=>logCardHtml(o)).join('');
@@ -1028,9 +1056,7 @@ function renderLog(){
   document.querySelectorAll('.tipo-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       bitacoraTipoFilter = btn.dataset.tipo;
-      renderLog();
-      renderEntities();
-      renderPropuesta();
+      renderAll();
     });
   });
 }
@@ -1449,6 +1475,7 @@ function renderMatrix(){
 }
 
 function renderAll(){
+  syncFilterStrip();
   hudBar();
   renderMatrix();
   renderLog();
@@ -1458,8 +1485,7 @@ function renderAll(){
   if(activeTab==='electrodep') renderElectrodep();
   updateRings();
   renderEntities();
-  const AGE_FILTER_LABEL = {'ALL':null,'0-6':'0–6 h','6-15':'6–15 h','15-24':'15–24 h','24-48':'24–48 h','48+':'+48 h'};
-  const ageLbl = AGE_FILTER_LABEL[mapAgeFilter];
+  const ageLbl = mapAgeFilters.size ? Array.from(mapAgeFilters).map(b=>AGE_BAND_LABEL[b]).join(' / ') : null;
   document.getElementById('status-line').textContent = `${visibleOrdersOnMap().length} contactos · ${visibleCrews().length} unidades · ${zonaLabel(selectedZona)}${ageLbl?' · antigüedad '+ageLbl:''} · radio de escaneo ${MAX_RANGE} km real`;
 }
 
@@ -2299,11 +2325,24 @@ document.getElementById('incident-select').addEventListener('change', (e)=>{
   renderAll();
   fitMapToData();
 });
-document.getElementById('age-select').addEventListener('change', (e)=>{
-  mapAgeFilter = e.target.value;
-  selectedOrderId = null;
-  clearRankLines();
-  renderAll();
+document.querySelectorAll('#filter-strip .ftype').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    bitacoraTipoFilter = b.dataset.ft;
+    selectedOrderId = null;
+    clearRankLines();
+    renderAll();
+  });
+});
+document.querySelectorAll('#filter-strip .fage').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    const band = b.dataset.fa;
+    if(band==='ALL'){ mapAgeFilters.clear(); }
+    else if(mapAgeFilters.has(band)){ mapAgeFilters.delete(band); }
+    else { mapAgeFilters.add(band); }
+    selectedOrderId = null;
+    clearRankLines();
+    renderAll();
+  });
 });
 
 const ZONA_WEATHER_COORDS = {
