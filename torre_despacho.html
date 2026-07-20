@@ -1471,14 +1471,46 @@ function renderMatrix(){
     </table>
     <div class="note" style="margin-top:8px;"><b>${antigZona==='ALL'?'Todas las zonas':zonaLabel(antigZona)}</b> · Antigüedad = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}). Antigüedad promedio: <b>${ageLabel(avgAgeH)}</b>${oldest?` · Orden más antigua: <b>#${escHtml(oldest.id)}</b> (${ageLabel(oldest._h)}, ${oldest.clientes||0} cliente(s))`:''}. Usa este tramo para priorizar y redistribuir recursos hacia las órdenes con mayor espera.</div>
   `;
+  // ---- Tipo de Móvil: roster de patentes RREE, ordenado, con/sin orden asignada ----
+  const rreeCrews = state.crews.filter(c=>c.tipoMovil==='RREE');
+  const rreeRows = rreeCrews.map(c=>{
+    const ord = state.orders.find(o=>o.crew===c.id);
+    const nombre = !c.sinActividad && c.label && c.label.includes('-') ? c.label.split('-').slice(1).join('-').replace(/_/g,' ') : '—';
+    return {
+      plate: c.plate || c.id,
+      conOrden: !c.sinActividad,
+      nombre,
+      ordenId: ord ? ord.id : '—',
+      zona: c.zona ? zonaLabel(c.zona) : '—',
+      clientes: ord ? (ord.clientes||0) : 0,
+      estadoLbl: !c.sinActividad ? (STATUS_LABEL[c.status]||c.status) : 'Sin orden',
+      rawStatus: c.status,
+    };
+  }).sort((a,b)=> (b.conOrden - a.conOrden) || a.plate.localeCompare(b.plate));
+  const conOrdenCount = rreeRows.filter(r=>r.conOrden).length;
+  const rreeHtml = `
+    <table class="matrix">
+      <tr><th style="text-align:left;">Patente</th><th style="text-align:left;">Estado</th><th style="text-align:left;">Cuadrilla</th><th style="text-align:left;">Orden</th><th style="text-align:left;">Zona</th><th>Clientes</th></tr>
+      ${rreeRows.map(r=>`<tr class="${r.conOrden?'':'p1-row'}">
+        <td class="rowlabel">${escHtml(r.plate)}</td>
+        <td>${r.conOrden?'<span class="pill '+(STATUS_CLASS[r.rawStatus]||'st-llego')+'"><span class="dot"></span>'+escHtml(r.estadoLbl)+'</span>':'<span class="pill st-sinasignar"><span class="dot"></span>Sin orden</span>'}</td>
+        <td>${escHtml(r.nombre)}</td>
+        <td>${escHtml(r.ordenId)}</td>
+        <td>${escHtml(r.zona)}</td>
+        <td class="num">${r.clientes}</td>
+      </tr>`).join('')}
+    </table>
+    <div class="note" style="margin-top:8px;">Móviles de RREE (Redes Energizadas en terreno), identificados por patente. <b>${conOrdenCount} de ${rreeRows.length}</b> tienen una orden asignada en este momento; el resto figura como <b>Sin orden</b>. Tabla ordenada: primero los que tienen orden, luego los que no.</div>
+  `;
   const tabsHtml=`
     <div class="matrix-tabs">
       <button class="mtab ${matrixView==='prio'?'active':''}" data-v="prio">Prioridad y tipo</button>
       <button class="mtab ${matrixView==='zona'?'active':''}" data-v="zona">Unidades por zona</button>
       <button class="mtab ${matrixView==='estado'?'active':''}" data-v="estado">Estado por zona</button>
       <button class="mtab ${matrixView==='antig'?'active':''}" data-v="antig">Antigüedad</button>
+      <button class="mtab ${matrixView==='rree'?'active':''}" data-v="rree">🚚 Tipo de Móvil</button>
     </div>`;
-  const body = matrixView==='zona' ? zonaHtml : (matrixView==='estado' ? estadoHtml : (matrixView==='antig' ? antigHtml : html));
+  const body = matrixView==='zona' ? zonaHtml : (matrixView==='estado' ? estadoHtml : (matrixView==='antig' ? antigHtml : (matrixView==='rree' ? rreeHtml : html)));
   document.getElementById('priority-matrix').innerHTML = `<div class="matrix-wrap">${tabsHtml}${body}</div>`;
   document.querySelectorAll('#priority-matrix .mtab').forEach(b=>b.addEventListener('click',()=>{ matrixView=b.dataset.v; renderMatrix(); }));
   document.querySelectorAll('#priority-matrix .stab[data-t]').forEach(b=>b.addEventListener('click',()=>{ estadoTipo=b.dataset.t; renderMatrix(); }));
