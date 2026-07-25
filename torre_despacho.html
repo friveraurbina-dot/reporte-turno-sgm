@@ -1522,8 +1522,8 @@ function renderMatrix(){
   const crewIdsDom = new Set(ordersDom.filter(o=>o.crew).map(o=>o.crew));
   const crewsDom = state.crews.filter(c=>crewIdsDom.has(c.id));
   const zc={},zo={};
-  crewsDom.forEach(c=>{const z=c.zona||'—'; zc[z]=(zc[z]||0)+1;});
-  ordersDom.forEach(o=>{const z=o.zona||'—'; zo[z]=(zo[z]||0)+1;});
+  crewsDom.forEach(c=>{const z=c.zona||'Sin zona'; zc[z]=(zc[z]||0)+1;});
+  ordersDom.forEach(o=>{const z=o.zona||'Sin zona'; zo[z]=(zo[z]||0)+1;});
   const zonas=Array.from(new Set([...Object.keys(zc),...Object.keys(zo)])).sort();
   const tUni=zonas.reduce((a,z)=>a+(zc[z]||0),0), tOrdZ=zonas.reduce((a,z)=>a+(zo[z]||0),0);
   const zonaHtml=`
@@ -1538,7 +1538,7 @@ function renderMatrix(){
   const etOrders = filterByTipoOrden(state.orders);
   const ze={};
   const incQ = o => estadoMetric==='cli' ? (o.clientes||0) : 1;
-  etOrders.forEach(o=>{const z=o.zona||'—'; if(!ze[z]) ze[z]={sa:0,ruta:0,sitio:0,tot:0}; const q=incQ(o); ze[z].tot+=q;
+  etOrders.forEach(o=>{const z=o.zona||'Sin zona'; if(!ze[z]) ze[z]={sa:0,ruta:0,sitio:0,tot:0}; const q=incQ(o); ze[z].tot+=q;
     if(o.unassigned||o.estado==='nuevo') ze[z].sa+=q;
     else if(o.estado==='despachado'||o.estado==='en_camino') ze[z].ruta+=q;
     else ze[z].sitio+=q;});
@@ -1566,10 +1566,10 @@ function renderMatrix(){
     const d = Math.floor(totalMin/1440), h = Math.floor((totalMin%1440)/60);
     return d>0 ? d+'d '+h+'h' : h+'h';
   }
-  const tOrders = filterByTipoOrden(state.orders).map(o=>Object.assign({_h:esperaMinutes(o.espera)/60}, o));
-  const tZonas = Array.from(new Set(tOrders.map(o=>o.zona))).filter(Boolean).sort();
+  const tOrders = filterByTipoOrden(state.orders).map(o=>Object.assign({_h:esperaMinutes(o.espera)/60, _zona:o.zona||'Sin zona'}, o));
+  const tZonas = Array.from(new Set(tOrders.map(o=>o._zona))).sort();
   const tRows = tZonas.map(z=>{
-    const list = tOrders.filter(o=>o.zona===z);
+    const list = tOrders.filter(o=>o._zona===z);
     const avgH = list.length ? list.reduce((s,o)=>s+o._h,0)/list.length : 0;
     const oldest = list.slice().sort((a,b)=>b._h-a._h)[0];
     return {z, ord:list.length, cli:list.reduce((s,o)=>s+(o.clientes||0),0), avgH, oldest};
