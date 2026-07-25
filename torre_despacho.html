@@ -339,6 +339,12 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
     </div>
     <div style="display:flex; align-items:center; gap:14px;">
       <select id="zona-select" class="zona-select"></select>
+      <select id="tipo-select" class="zona-select">
+        <option value="ALL">Todas</option>
+        <option value="DOM">🏠 Domiciliaria</option>
+        <option value="MT">⚡ Red / MT</option>
+        <option value="ELEC">❤ Electrodependiente</option>
+      </select>
       <select id="incident-select" class="zona-select">
         <option value="ALL">Confirmada + Predicha</option>
         <option value="confirmed">Solo Confirmadas</option>
@@ -349,14 +355,6 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
   </div>
 
   <div class="filter-strip" id="filter-strip">
-    <div class="filter-group">
-      <span class="filter-label">Tipo:</span>
-      <button class="fpill ftype active" data-ft="ALL">Todas</button>
-      <button class="fpill ftype" data-ft="DOM">🏠 Domiciliaria</button>
-      <button class="fpill ftype" data-ft="MT">⚡ Red / MT</button>
-      <button class="fpill ftype" data-ft="ELEC" style="color:#E0218A;">♥ Electrodep.</button>
-      <button class="fpill ftype" data-ft="RREE">🚚 Tipo de Móvil (RREE)</button>
-    </div>
     <div class="filter-group">
       <span class="filter-label">Antigüedad (selección múltiple):</span>
       <button class="fpill fage active" data-fa="ALL">Todas</button>
@@ -528,7 +526,8 @@ function matchesAgeBand(o){
   return false;
 }
 function syncFilterStrip(){
-  document.querySelectorAll('#filter-strip .ftype').forEach(b=> b.classList.toggle('active', b.dataset.ft===bitacoraTipoFilter));
+  const tipoSel = document.getElementById('tipo-select');
+  if(tipoSel && ['ALL','DOM','MT','ELEC'].includes(bitacoraTipoFilter) && tipoSel.value !== bitacoraTipoFilter) tipoSel.value = bitacoraTipoFilter;
   document.querySelectorAll('#filter-strip .fage').forEach(b=>{
     const band = b.dataset.fa;
     b.classList.toggle('active', band==='ALL' ? mapAgeFilters.size===0 : mapAgeFilters.has(band));
@@ -1491,26 +1490,46 @@ function switchTab(tab){
 let matrixView='estado', estadoTipo='ALL', estadoMetric='ord', antigZona='ALL';
 function renderMatrix(){
   const orders = visibleOrders();
-  const rows = [1,2,3,4].map(p=>{
-    const dom = orders.filter(o=>o.priority===p && o.tipo==='DOM').length;
-    const mt = orders.filter(o=>o.priority===p && o.tipo==='MT').length;
-    const elec = orders.filter(o=>o.priority===p && o.electrodependiente).length;
-    return {p, dom, mt, elec, total:dom+mt};
-  });
-  const totalDom = rows.reduce((s,r)=>s+r.dom,0);
-  const totalMt = rows.reduce((s,r)=>s+r.mt,0);
-  const totalElec = rows.reduce((s,r)=>s+r.elec,0);
   const cell = n => `<td class="num ${n===0?'zero':''}">${n}</td>`;
   const cellElec = n => `<td class="num elec-cell ${n===0?'zero':''}">${n}</td>`;
-  const html = `
-    
+  const TIPO_SCOPED = {DOM:{lbl:'Domiciliaria (DOM)', icon:'🏠'}, MT:{lbl:'Red / Media tensión (MT)', icon:'⚡'}, ELEC:{lbl:'Electrodependientes', icon:'❤'}};
+  let html;
+  if(TIPO_SCOPED[bitacoraTipoFilter]){
+    // ---- Analisis acotado al tipo de actividad seleccionado arriba (junto a zona) ----
+    const scoped = applyBitacoraFilter(orders);
+    const scopedRows = [1,2,3,4].map(p=>{
+      const list = scoped.filter(o=>o.priority===p);
+      return {p, ord:list.length, cli:list.reduce((s,o)=>s+(o.clientes||0),0)};
+    });
+    const tOrd = scopedRows.reduce((s,r)=>s+r.ord,0), tCli = scopedRows.reduce((s,r)=>s+r.cli,0);
+    const meta = TIPO_SCOPED[bitacoraTipoFilter];
+    html = `
+    <table class="matrix">
+      <tr><th style="text-align:left;">Prioridad</th><th>📋 Órdenes</th><th>👥 Clientes</th></tr>
+      ${scopedRows.map(r=>`<tr class="${r.p===1?'p1-row':''}"><td class="rowlabel">P${r.p}${r.p===1?' · máxima':''}</td>${cell(r.ord)}${cell(r.cli)}</tr>`).join('')}
+      <tr class="total"><td class="rowlabel">Total</td>${cell(tOrd)}${cell(tCli)}</tr>
+    </table>
+    <div class="note" style="margin-top:8px;">Mostrando solo <b>${meta.icon} ${meta.lbl}</b> (filtro activo junto a la zona, arriba). Cambia a <b>Todas</b> para ver el desglose completo por tipo.</div>
+    `;
+  } else {
+    const rows = [1,2,3,4].map(p=>{
+      const dom = orders.filter(o=>o.priority===p && o.tipo==='DOM').length;
+      const mt = orders.filter(o=>o.priority===p && o.tipo==='MT').length;
+      const elec = orders.filter(o=>o.priority===p && o.electrodependiente).length;
+      return {p, dom, mt, elec, total:dom+mt};
+    });
+    const totalDom = rows.reduce((s,r)=>s+r.dom,0);
+    const totalMt = rows.reduce((s,r)=>s+r.mt,0);
+    const totalElec = rows.reduce((s,r)=>s+r.elec,0);
+    html = `
     <table class="matrix">
       <tr><th style="text-align:left;">Prioridad</th><th>🏠 DOM</th><th>⚡ MT</th><th>♥ Elec.</th><th>Total</th></tr>
       ${rows.map(r=>`<tr class="${r.p===1?'p1-row':''}"><td class="rowlabel">P${r.p}${r.p===1?' · máxima':''}</td>${cell(r.dom)}${cell(r.mt)}${cellElec(r.elec)}${cell(r.total)}</tr>`).join('')}
       <tr class="total"><td class="rowlabel">Total</td>${cell(totalDom)}${cell(totalMt)}${cellElec(totalElec)}${cell(totalDom+totalMt)}</tr>
     </table>
     <div class="note" style="margin-top:8px;">La columna <b style="color:#E0218A;">♥ Electrodep.</b> indica, dentro de cada prioridad, cuántas órdenes son de clientes electrodependientes. Estos clientes siempre se tratan como <b>prioridad 1 (máxima)</b> en la bitácora, el mapa y la propuesta de atención, sin importar su prioridad P1–P4 original.</div>
-  `;
+    `;
+  }
   const zc={},zo={};
   state.crews.forEach(c=>{const z=c.zona||'—'; zc[z]=(zc[z]||0)+1;});
   state.orders.forEach(o=>{const z=o.zona||'—'; zo[z]=(zo[z]||0)+1;});
@@ -2494,13 +2513,11 @@ document.getElementById('incident-select').addEventListener('change', (e)=>{
   renderAll();
   fitMapToData();
 });
-document.querySelectorAll('#filter-strip .ftype').forEach(b=>{
-  b.addEventListener('click', ()=>{
-    bitacoraTipoFilter = b.dataset.ft;
-    selectedOrderId = null;
-    clearRankLines();
-    renderAll();
-  });
+document.getElementById('tipo-select').addEventListener('change', (e)=>{
+  bitacoraTipoFilter = e.target.value;
+  selectedOrderId = null;
+  clearRankLines();
+  renderAll();
 });
 document.querySelectorAll('#filter-strip .fage').forEach(b=>{
   b.addEventListener('click', ()=>{
