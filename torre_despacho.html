@@ -425,18 +425,13 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
     <div class="sidepanel">
       <div id="priority-matrix"></div>
       <div class="tabs">
-        <div class="tab" data-tab="domiciliario">🏠 Control Domiciliario</div>
-        <div class="tab active" data-tab="electrodep">❤ Electrodep.</div>
-        <div class="tab" data-tab="log">Bitácora</div>
+        <div class="tab active" data-tab="unidades">Unidades</div>
         <div class="tab" data-tab="nueva">Detección</div>
-        <div class="tab" data-tab="unidades">Unidades</div>
         <div class="tab" data-tab="propuesta">Propuesta</div>
       </div>
-      <div class="tabcontent" id="tab-domiciliario" style="display:none;"></div>
-      <div class="tabcontent" id="tab-electrodep"></div>
       <div class="tabcontent" id="tab-log" style="display:none;"></div>
       <div class="tabcontent" id="tab-nueva" style="display:none;"></div>
-      <div class="tabcontent" id="tab-unidades" style="display:none;"></div>
+      <div class="tabcontent" id="tab-unidades"></div>
       <div class="tabcontent" id="tab-propuesta" style="display:none;"></div>
     </div>
   </div>
@@ -496,7 +491,7 @@ let SEED_ORDERS = [];
 
 let state = null;
 let selectedOrderId = null;
-let activeTab = 'electrodep';
+let activeTab = 'unidades';
 let pendingNewOrder = null;
 let sweepAngle = 0;
 let sweepTimer = null;
@@ -707,7 +702,7 @@ function armPlacement(orderId){
   banner.textContent = `Haz clic en el mapa para ubicar la orden #${orderId}`;
   banner.style.display = 'block';
   document.getElementById('leaflet-map').style.cursor = 'crosshair';
-  switchTab('log');
+  switchTab('unidades');
 }
 
 function updateRings(){
@@ -1454,7 +1449,7 @@ function renderNueva(){
         selectedOrderId = newId;
         clearRankLines();
         computeCenter();
-        switchTab('log');
+        switchTab('unidades');
         renderAll();
       });
     });
@@ -1482,17 +1477,12 @@ function selectOrder(id){
 function switchTab(tab){
   activeTab = tab;
   document.querySelectorAll('.tab').forEach(t=> t.classList.toggle('active', t.dataset.tab===tab));
-  document.getElementById('tab-log').style.display = tab==='log'?'block':'none';
   document.getElementById('tab-nueva').style.display = tab==='nueva'?'block':'none';
   document.getElementById('tab-unidades').style.display = tab==='unidades'?'block':'none';
   document.getElementById('tab-propuesta').style.display = tab==='propuesta'?'block':'none';
-  document.getElementById('tab-electrodep').style.display = tab==='electrodep'?'block':'none';
-  document.getElementById('tab-domiciliario').style.display = tab==='domiciliario'?'block':'none';
-  if(tab==='electrodep') renderElectrodep();
-  if(tab==='domiciliario') renderDomiciliario();
 }
 
-let matrixView='estado', estadoMetric='ord';
+let matrixView='combo', estadoMetric='ord';
 function filterByTipoOrden(list){
   if(bitacoraTipoFilter==='DOM') return list.filter(o=>o.tipo==='DOM' && !o.electrodependiente);
   if(bitacoraTipoFilter==='MT') return list.filter(o=>o.tipo==='MT' && !o.electrodependiente);
@@ -1505,13 +1495,13 @@ function tipoOrdenLabel(){
 function renderMatrix(){
   const cell = n => `<td class="num ${n===0?'zero':''}">${n}</td>`;
 
-  // ---- Unidades por zona (segun Tipo de Orden seleccionado arriba, junto a zona) ----
-  const ordersForZona = filterByTipoOrden(state.orders);
-  const crewIdsForZona = new Set(ordersForZona.filter(o=>o.crew).map(o=>o.crew));
-  const crewsForZona = bitacoraTipoFilter==='ALL' ? state.crews : state.crews.filter(c=>crewIdsForZona.has(c.id));
+  // ---- Unidades por zona: SIEMPRE unidades asignadas a ordenes DOMICILIARIAS ----
+  const ordersDom = state.orders.filter(o=>o.tipo==='DOM' && !o.electrodependiente);
+  const crewIdsDom = new Set(ordersDom.filter(o=>o.crew).map(o=>o.crew));
+  const crewsDom = state.crews.filter(c=>crewIdsDom.has(c.id));
   const zc={},zo={};
-  crewsForZona.forEach(c=>{const z=c.zona||'—'; zc[z]=(zc[z]||0)+1;});
-  ordersForZona.forEach(o=>{const z=o.zona||'—'; zo[z]=(zo[z]||0)+1;});
+  crewsDom.forEach(c=>{const z=c.zona||'—'; zc[z]=(zc[z]||0)+1;});
+  ordersDom.forEach(o=>{const z=o.zona||'—'; zo[z]=(zo[z]||0)+1;});
   const zonas=Array.from(new Set([...Object.keys(zc),...Object.keys(zo)])).sort();
   const tUni=zonas.reduce((a,z)=>a+(zc[z]||0),0), tOrdZ=zonas.reduce((a,z)=>a+(zo[z]||0),0);
   const zonaHtml=`
@@ -1520,7 +1510,7 @@ function renderMatrix(){
       ${zonas.length ? zonas.map(z=>`<tr><td class="rowlabel">${zonaLabel(z)}</td>${cell(zc[z]||0)}${cell(zo[z]||0)}</tr>`).join('') : '<tr><td colspan="3" class="empty">SIN DATOS</td></tr>'}
       <tr class="total"><td class="rowlabel">Total</td>${cell(tUni)}${cell(tOrdZ)}</tr>
     </table>
-    <div class="note" style="margin-top:8px;">Unidades (cuadrillas) desplegadas y órdenes activas por zona · <b>${tipoOrdenLabel()}</b> (filtro activo junto a la zona, arriba).</div>`;
+    <div class="note" style="margin-top:8px;">Unidades (cuadrillas) asignadas a <b>órdenes domiciliarias (DOM)</b>, por zona.</div>`;
 
   // ---- Estado por zona (segun Tipo de Orden seleccionado arriba) ----
   const etOrders = filterByTipoOrden(state.orders);
@@ -1538,7 +1528,9 @@ function renderMatrix(){
       <button class="stab mmtab ${estadoMetric==='ord'?'active':''}" data-m="ord">📋 N° de órdenes</button>
       <button class="stab mmtab ${estadoMetric==='cli'?'active':''}" data-m="cli">👥 N° de clientes</button>
     </div>`;
-  const estadoHtml=metPills+`
+  const estadoHtml=`
+    <div class="section-label">Estado por zona</div>
+    ${metPills}
     <table class="matrix">
       <tr><th style="text-align:left;">Zona</th><th>⚠ S/asig</th><th>🚚 En ruta</th><th>📍 En sitio</th><th>${totColLbl}</th></tr>
       ${zEst.length ? zEst.map(z=>`<tr><td class="rowlabel">${zonaLabel(z)}</td>${cell(ze[z].sa)}${cell(ze[z].ruta)}${cell(ze[z].sitio)}${cell(ze[z].tot)}</tr>`).join('') : '<tr><td colspan="5" class="empty">SIN DATOS</td></tr>'}
@@ -1546,7 +1538,7 @@ function renderMatrix(){
     </table>
     <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · mostrando <b>${metLbl}</b> · <b>S/asig</b>: sin cuadrilla · <b>En ruta</b>: despachada / en camino · <b>En sitio</b>: cuadrilla trabajando.</div>`;
 
-  // ---- Tiempo por zona (reemplaza Antiguedad) ----
+  // ---- Tiempo por zona ----
   function ageLabel(hoursFloat){
     const totalMin = Math.max(0, Math.round(hoursFloat*60));
     const d = Math.floor(totalMin/1440), h = Math.floor((totalMin%1440)/60);
@@ -1563,6 +1555,7 @@ function renderMatrix(){
   const tTotOrd = tRows.reduce((s,r)=>s+r.ord,0), tTotCli = tRows.reduce((s,r)=>s+r.cli,0);
   const allOldest = tOrders.slice().sort((a,b)=>b._h-a._h)[0];
   const tiempoHtml = `
+    <div class="section-label" style="margin-top:14px;">Tiempo por zona</div>
     <table class="matrix">
       <tr><th style="text-align:left;">Zona</th><th>📋 Órdenes</th><th>👥 Clientes</th><th>⏱ Espera prom.</th><th>⏱ Más antigua</th></tr>
       ${tRows.length ? tRows.map(r=>`<tr><td class="rowlabel">${zonaLabel(r.z)}</td>${cell(r.ord)}${cell(r.cli)}<td class="num">${ageLabel(r.avgH)}</td><td class="num">${r.oldest?ageLabel(r.oldest._h):'—'}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">SIN DATOS</td></tr>'}
@@ -1570,14 +1563,14 @@ function renderMatrix(){
     </table>
     <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · Espera = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}).${allOldest?` Orden más antigua general: <b>#${escHtml(allOldest.id)}</b> (${ageLabel(allOldest._h)}, ${zonaLabel(allOldest.zona)}).`:''}</div>
   `;
+  const comboHtml = estadoHtml + tiempoHtml;
 
   const tabsHtml=`
     <div class="matrix-tabs">
-      <button class="mtab ${matrixView==='zona'?'active':''}" data-v="zona">Unidades por zona</button>
-      <button class="mtab ${matrixView==='estado'?'active':''}" data-v="estado">Estado por zona</button>
-      <button class="mtab ${matrixView==='tiempo'?'active':''}" data-v="tiempo">Tiempo por zona</button>
+      <button class="mtab ${matrixView==='zona'?'active':''}" data-v="zona">Unidades por zona (DOM)</button>
+      <button class="mtab ${matrixView==='combo'?'active':''}" data-v="combo">Estado y Tiempo por zona</button>
     </div>`;
-  const body = matrixView==='zona' ? zonaHtml : (matrixView==='tiempo' ? tiempoHtml : estadoHtml);
+  const body = matrixView==='zona' ? zonaHtml : comboHtml;
   document.getElementById('priority-matrix').innerHTML = `<div class="matrix-wrap">${tabsHtml}${body}</div>`;
   document.querySelectorAll('#priority-matrix .mtab').forEach(b=>b.addEventListener('click',()=>{ matrixView=b.dataset.v; renderMatrix(); }));
   document.querySelectorAll('#priority-matrix .mmtab').forEach(b=>b.addEventListener('click',()=>{ estadoMetric=b.dataset.m; renderMatrix(); }));
@@ -1591,8 +1584,6 @@ function renderAll(){
   renderUnidades();
   renderPropuesta();
   if(activeTab==='nueva') renderNueva();
-  if(activeTab==='electrodep') renderElectrodep();
-  if(activeTab==='domiciliario') renderDomiciliario();
   updateRings();
   renderEntities();
   const ageLbl = mapAgeFilters.size ? Array.from(mapAgeFilters).map(b=>AGE_BAND_LABEL[b]).join(' / ') : null;
