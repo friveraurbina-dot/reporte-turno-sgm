@@ -422,12 +422,14 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
     <div class="sidepanel">
       <div id="priority-matrix"></div>
       <div class="tabs">
+        <div class="tab" data-tab="domiciliario">🏠 Control Domiciliario</div>
         <div class="tab active" data-tab="electrodep">❤ Electrodep.</div>
         <div class="tab" data-tab="log">Bitácora</div>
         <div class="tab" data-tab="nueva">Detección</div>
         <div class="tab" data-tab="unidades">Unidades</div>
         <div class="tab" data-tab="propuesta">Propuesta</div>
       </div>
+      <div class="tabcontent" id="tab-domiciliario" style="display:none;"></div>
       <div class="tabcontent" id="tab-electrodep"></div>
       <div class="tabcontent" id="tab-log" style="display:none;"></div>
       <div class="tabcontent" id="tab-nueva" style="display:none;"></div>
@@ -1122,6 +1124,126 @@ function renderUnidades(){
   document.querySelectorAll('#tab-unidades .uk-card').forEach(el=>el.addEventListener('click',()=>{ const oo=state.orders.find(o=>o.crew===el.dataset.crew); if(oo) selectOrder(oo.id); }));
 }
 
+function renderDomiciliario(){
+  const container = document.getElementById('tab-domiciliario');
+  const orders = visibleOrders().filter(o=>o.tipo==='DOM');
+  const totalOrdenes = orders.length;
+  const totalClientes = orders.reduce((s,o)=>s+(o.clientes||0),0);
+  const cell = n => `<td class="num ${n===0?'zero':''}">${n}</td>`;
+
+  // ---- Zona ----
+  const zMap = {};
+  orders.forEach(o=>{ const z=o.zona||'—'; if(!zMap[z]) zMap[z]={ord:0,cli:0}; zMap[z].ord++; zMap[z].cli+=(o.clientes||0); });
+  const zonas = Object.keys(zMap).sort();
+  const tZOrd = zonas.reduce((s,z)=>s+zMap[z].ord,0), tZCli = zonas.reduce((s,z)=>s+zMap[z].cli,0);
+  const zonaHtml = `
+    <div class="section-label">Zona</div>
+    <table class="matrix">
+      <tr><th style="text-align:left;">Zona</th><th>📋 Órdenes</th><th>👥 Clientes</th></tr>
+      ${zonas.length ? zonas.map(z=>`<tr><td class="rowlabel">${zonaLabel(z)}</td>${cell(zMap[z].ord)}${cell(zMap[z].cli)}</tr>`).join('') : '<tr><td colspan="3" class="empty">SIN DATOS</td></tr>'}
+      <tr class="total"><td class="rowlabel">Total</td>${cell(tZOrd)}${cell(tZCli)}</tr>
+    </table>`;
+
+  // ---- Tiempos (bloque horario de creación) ----
+  const bMap = {};
+  orders.forEach(o=>{ const b=o.bloqueHorario||'—'; if(!bMap[b]) bMap[b]={ord:0,cli:0}; bMap[b].ord++; bMap[b].cli+=(o.clientes||0); });
+  const bKeys = Object.keys(bMap);
+  const tBOrd = bKeys.reduce((s,b)=>s+bMap[b].ord,0), tBCli = bKeys.reduce((s,b)=>s+bMap[b].cli,0);
+  const tiemposHtml = `
+    <div class="section-label">Tiempos — bloque horario de creación</div>
+    <table class="matrix">
+      <tr><th style="text-align:left;">Bloque</th><th>📋 Órdenes</th><th>👥 Clientes</th></tr>
+      ${bKeys.length ? bKeys.map(b=>`<tr><td class="rowlabel">${b}</td>${cell(bMap[b].ord)}${cell(bMap[b].cli)}</tr>`).join('') : '<tr><td colspan="3" class="empty">SIN DATOS</td></tr>'}
+      <tr class="total"><td class="rowlabel">Total</td>${cell(tBOrd)}${cell(tBCli)}</tr>
+    </table>`;
+
+  // ---- Antigüedad ----
+  function ageLabelDom(hoursFloat){
+    const totalMin = Math.max(0, Math.round(hoursFloat*60));
+    const d = Math.floor(totalMin/1440), h = Math.floor((totalMin%1440)/60);
+    return d>0 ? d+'d '+h+'h' : h+'h';
+  }
+  const AGE_BANDS_DOM = [
+    {lo:0,  hi:6,        lbl:'0 – 6 h'},
+    {lo:6,  hi:15,       lbl:'6 – 15 h'},
+    {lo:15, hi:24,       lbl:'15 – 24 h'},
+    {lo:24, hi:48,       lbl:'24 – 48 h'},
+    {lo:48, hi:Infinity, lbl:'+ 48 h'},
+  ];
+  const ordersWithAge = orders.map(o=>Object.assign({_h:esperaMinutes(o.espera)/60}, o));
+  const antigRows = AGE_BANDS_DOM.map(b=>{
+    const list = ordersWithAge.filter(o=>o._h>=b.lo && o._h<b.hi);
+    return {lbl:b.lbl, ord:list.length, cli:list.reduce((s,o)=>s+(o.clientes||0),0)};
+  });
+  const tAOrd = antigRows.reduce((s,r)=>s+r.ord,0), tACli = antigRows.reduce((s,r)=>s+r.cli,0);
+  const avgAgeH = ordersWithAge.length ? ordersWithAge.reduce((s,o)=>s+o._h,0)/ordersWithAge.length : 0;
+  const oldest = ordersWithAge.slice().sort((a,b)=>b._h-a._h)[0];
+  const antigHtml = `
+    <div class="section-label">Antigüedad</div>
+    <table class="matrix">
+      <tr><th style="text-align:left;">Antigüedad</th><th>📋 Órdenes</th><th>👥 Clientes</th></tr>
+      ${antigRows.map(r=>`<tr class="${r.lbl==='+ 48 h'&&r.ord>0?'p1-row':''}"><td class="rowlabel">${r.lbl}</td>${cell(r.ord)}${cell(r.cli)}</tr>`).join('')}
+      <tr class="total"><td class="rowlabel">Total</td>${cell(tAOrd)}${cell(tACli)}</tr>
+    </table>
+    <div class="note" style="margin-top:8px;">Antigüedad promedio: <b>${ageLabelDom(avgAgeH)}</b>${oldest?` · Orden más antigua: <b>#${escHtml(oldest.id)}</b> (${ageLabelDom(oldest._h)}, ${oldest.clientes||0} cliente(s))`:''}.</div>`;
+
+  // ---- Móviles asignados (solo con orden DOM activa) ----
+  const domCrewIds = new Set(orders.filter(o=>o.crew).map(o=>o.crew));
+  const crews = state.crews.filter(c=>domCrewIds.has(c.id));
+  const zLbl = z => z ? zonaLabel(z) : '—';
+  const crewCard = c => {
+    const n = orders.filter(o=>o.crew===c.id).length;
+    const color = STATUS_TEXT_COLOR[c.status] || '#2B6CB0';
+    return `<div class="uk-card" data-crew="${c.id}">
+      <div class="uk-av" style="background:${color}1f;color:${color};">${c.label.slice(0,2).toUpperCase()}</div>
+      <div class="uk-meta"><div class="uk-name">${c.label}</div>
+      <div class="uk-sub">${zLbl(c.zona)} · ${n} orden(es) DOM</div></div>
+    </div>`;
+  };
+  const sinMovilCount = orders.filter(o=>o.unassigned).length;
+  const movilesHtml = `
+    <div class="section-label">Móviles asignados — ${crews.length}</div>
+    <div class="uk-cover">🚨 <span><b>${sinMovilCount.toLocaleString('es-CL')}</b> órdenes domiciliarias sin móvil asignado</span></div>
+    <div class="uk-board">
+      <div class="uk-col" style="flex-basis:100%;">
+        <div class="uk-body">${crews.length? crews.map(crewCard).join('') : '<div class="uk-empty">— sin móviles asignados —</div>'}</div>
+      </div>
+    </div>`;
+
+  // ---- Sin móvil asignado (detalle) ----
+  const sinMovil = orders.filter(o=>o.unassigned).sort((a,b)=>esperaMinutes(b.espera)-esperaMinutes(a.espera));
+  const sinMovilHtml = `
+    <div class="section-label">Sin móvil asignado — ${sinMovil.length}</div>
+    ${sinMovil.length ? sinMovil.map(o=>logCardHtml(o)).join('') : '<div class="empty">SIN ÓRDENES PENDIENTES DE ASIGNAR</div>'}`;
+
+  container.innerHTML = `
+    <div class="section-label">🏠 Control Domiciliario — ${totalOrdenes.toLocaleString('es-CL')} órdenes · ${totalClientes.toLocaleString('es-CL')} clientes</div>
+    <div class="note" style="margin-bottom:11px;">Vista enfocada exclusivamente en órdenes <b>domiciliarias (DOM)</b>: zona, tiempos de creación, antigüedad y estado de asignación de móviles.</div>
+    ${zonaHtml}
+    <div style="height:14px;"></div>
+    ${tiemposHtml}
+    <div style="height:14px;"></div>
+    ${antigHtml}
+    <div style="height:14px;"></div>
+    ${movilesHtml}
+    <div style="height:14px;"></div>
+    ${sinMovilHtml}
+  `;
+  document.querySelectorAll('#tab-domiciliario .uk-card').forEach(el=>el.addEventListener('click',()=>{ const oo=orders.find(o=>o.crew===el.dataset.crew); if(oo) selectOrder(oo.id); }));
+  document.querySelectorAll('#tab-domiciliario .log-entry').forEach(e=>{
+    e.addEventListener('click', (ev)=>{
+      if(ev.target.closest('.geo-place-btn')) return;
+      selectOrder(e.dataset.id);
+    });
+  });
+  document.querySelectorAll('#tab-domiciliario .geo-place-btn').forEach(btn=>{
+    btn.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      armPlacement(btn.dataset.id);
+    });
+  });
+}
+
 const PRIORITY_MULT = {1:4, 2:3, 3:2, 4:1};
 
 function renderPropuesta(){
@@ -1361,7 +1483,9 @@ function switchTab(tab){
   document.getElementById('tab-unidades').style.display = tab==='unidades'?'block':'none';
   document.getElementById('tab-propuesta').style.display = tab==='propuesta'?'block':'none';
   document.getElementById('tab-electrodep').style.display = tab==='electrodep'?'block':'none';
+  document.getElementById('tab-domiciliario').style.display = tab==='domiciliario'?'block':'none';
   if(tab==='electrodep') renderElectrodep();
+  if(tab==='domiciliario') renderDomiciliario();
 }
 
 let matrixView='estado', estadoTipo='ALL', estadoMetric='ord', antigZona='ALL';
@@ -1527,6 +1651,7 @@ function renderAll(){
   renderPropuesta();
   if(activeTab==='nueva') renderNueva();
   if(activeTab==='electrodep') renderElectrodep();
+  if(activeTab==='domiciliario') renderDomiciliario();
   updateRings();
   renderEntities();
   const ageLbl = mapAgeFilters.size ? Array.from(mapAgeFilters).map(b=>AGE_BAND_LABEL[b]).join(' / ') : null;
