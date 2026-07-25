@@ -67,6 +67,8 @@
 }
 .zona-select:focus{outline:none; border-color:#fff;}
 .tipo-orden-wrap{display:flex; flex-direction:column; gap:2px;}
+.heat-toggle{background:rgba(255,255,255,.16); color:#fff; border-color:rgba(255,255,255,.4);}
+.heat-toggle.active{background:#7A121F; color:#fff; border-color:#7A121F;}
 .topbar-label{font-family:var(--body); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:rgba(255,255,255,.7);}
 
 .matrix-wrap{padding:8px 12px; border-bottom:1px solid var(--border); background:var(--panel2);}
@@ -276,9 +278,9 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 .weather-strip{display:flex; align-items:center; gap:10px; padding:6px 14px; background:linear-gradient(180deg,#fbfbfc,#f3f4f6); border-bottom:1px solid var(--border); overflow-x:auto;}
 .weather-strip-label{font-family:var(--mono); font-size:9.5px; color:var(--red-dark); text-transform:uppercase; letter-spacing:.08em; flex-shrink:0; font-weight:700; display:flex; align-items:center; gap:5px;}
 .weather-strip-label::before{content:'🌤️'; font-size:11px;}
-.weather-chips{display:flex; gap:10px; flex:1;}
+.weather-chips{display:flex; align-items:flex-start; gap:10px; flex:1;}
 .weather-loading{font-size:11px; color:var(--muted); font-style:italic;}
-.wchip{position:relative; display:flex; align-items:center; gap:6px; background:#fff; border:1px solid var(--border); border-radius:8px; padding:4px 9px; cursor:default; flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,.04); transition:box-shadow .15s, border-color .15s;}
+.wchip{position:relative; display:flex; align-items:flex-start; gap:6px; background:#fff; border:1px solid var(--border); border-radius:8px; padding:4px 9px; cursor:default; flex-shrink:0; box-shadow:0 1px 3px rgba(0,0,0,.04); transition:box-shadow .15s, border-color .15s;}
 .wchip:hover{box-shadow:0 4px 14px rgba(0,0,0,.09); border-color:#d8dbe0;}
 .wchip .wc-icon{font-size:15px; line-height:1;}
 .wchip .wc-info{display:flex; flex-direction:column; line-height:1.15;}
@@ -355,6 +357,10 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
         <option value="confirmed">Solo Confirmadas</option>
         <option value="predicted">Solo Predichas</option>
       </select>
+      <div class="tipo-orden-wrap">
+        <span class="topbar-label">Vista del mapa</span>
+        <button id="heatmap-toggle" type="button" class="zona-select heat-toggle active">🔥 Mapa de calor: ON</button>
+      </div>
       <div class="hud-strip" id="hud-bar"></div>
     </div>
   </div>
@@ -403,10 +409,21 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
         <div class="row"><svg width="18" height="18"><circle cx="9" cy="9" r="6" fill="#8b95a3" stroke="#05080a" stroke-width="1.5"/><circle cx="9" cy="9" r="8" fill="none" stroke="#B9770E" stroke-width="2" stroke-dasharray="3,2"/></svg> P3 — Media</div>
         <div class="row"><svg width="18" height="18"><circle cx="9" cy="9" r="6" fill="#8b95a3" stroke="#05080a" stroke-width="1.5"/></svg> P4 — Baja (sin anillo)</div>
         <hr>
-        <div class="legend-title">Tipo de orden (color del punto)</div>
-        <div class="row"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M1 13 L1 6 L7 1 L13 6 L13 13 Z" fill="#F7C81A" stroke="#05080a" stroke-width="1.3"/></svg> Domiciliaria (DOM) — amarillo</div>
-        <div class="row"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="4" fill="#F28C28" stroke="#05080a" stroke-width="1.3"/><line x1="8" y1="3" x2="8" y2="13" stroke="#fff" stroke-width="1.4"/><line x1="4" y1="6" x2="12" y2="6" stroke="#fff" stroke-width="1.2"/><circle cx="4" cy="6" r="1" fill="#fff"/><circle cx="12" cy="6" r="1" fill="#fff"/></svg> Red / Media tensión (MT) — naranjo</div>
-        <div class="row"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#E4141B" stroke="#05080a" stroke-width="1.3"/></svg> Electrodependiente — rojo</div>
+        <div id="legend-tipo" style="display:none;">
+          <div class="legend-title">Tipo de orden (color del punto)</div>
+          <div class="row"><svg width="14" height="14" viewBox="0 0 14 14"><path d="M1 13 L1 6 L7 1 L13 6 L13 13 Z" fill="#F7C81A" stroke="#05080a" stroke-width="1.3"/></svg> Domiciliaria (DOM) — amarillo</div>
+          <div class="row"><svg width="16" height="16" viewBox="0 0 16 16"><rect x="1" y="1" width="14" height="14" rx="4" fill="#F28C28" stroke="#05080a" stroke-width="1.3"/><line x1="8" y1="3" x2="8" y2="13" stroke="#fff" stroke-width="1.4"/><line x1="4" y1="6" x2="12" y2="6" stroke="#fff" stroke-width="1.2"/><circle cx="4" cy="6" r="1" fill="#fff"/><circle cx="12" cy="6" r="1" fill="#fff"/></svg> Red / Media tensión (MT) — naranjo</div>
+          <div class="row"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#E4141B" stroke="#05080a" stroke-width="1.3"/></svg> Electrodependiente — rojo</div>
+        </div>
+        <div id="legend-heat" style="display:block;">
+          <div class="legend-title">Mapa de calor — tiempo de espera (color del punto)</div>
+          <div class="row"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#FBEFC1" stroke="#05080a" stroke-width="1.3"/></svg> 0 – 6 h — menor espera</div>
+          <div class="row"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#F1DDB2" stroke="#05080a" stroke-width="1.3"/></svg> 6 – 15 h</div>
+          <div class="row"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#E5C6A0" stroke="#05080a" stroke-width="1.3"/></svg> 15 – 24 h</div>
+          <div class="row"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#CE9A7C" stroke="#05080a" stroke-width="1.3"/></svg> 24 – 48 h</div>
+          <div class="row"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#9C3E32" stroke="#05080a" stroke-width="1.3"/></svg> 48 – 96 h</div>
+          <div class="row"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="#7B0000" stroke="#05080a" stroke-width="1.3"/></svg> + 96 h — mayor espera (prioridad)</div>
+        </div>
         <hr>
         <div class="legend-title">Cliente crítico</div>
         <div class="row"><svg width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="none" stroke="#E0218A" stroke-width="2" stroke-dasharray="2,2"/><circle cx="9" cy="9" r="4.5" fill="#E0218A"/><text x="9" y="12" font-size="6" text-anchor="middle" fill="#fff">♥</text></svg> Electrodependiente — prioridad máxima</div>
@@ -591,6 +608,21 @@ function priorityRingColor(p){ if(p<=2) return '#D2232A'; if(p===3) return '#B97
 // Color del punto por TIPO de orden (independiente del estado de despacho):
 //   Electrodependiente = rojo · Red (Media Tensión) = naranjo · Domiciliaria = amarillo
 function typeColor(o){ if(o && o.electrodependiente) return '#E4141B'; if(o && o.tipo==='MT') return '#F28C28'; return '#F7C81A'; }
+
+let heatMapMode = true;
+function heatColor(hoursWait){
+  const h = Math.max(0, hoursWait||0);
+  const t = Math.min(1, h/96); // 0h = menor espera, 96h+ (4 dias) = maxima espera/prioridad
+  const c1 = [255,247,199]; // pale yellow - poca espera
+  const c2 = [123,0,0];     // rojo oscuro - mucha espera
+  const r = Math.round(c1[0] + (c2[0]-c1[0])*t);
+  const g = Math.round(c1[1] + (c2[1]-c1[1])*t);
+  const b = Math.round(c1[2] + (c2[2]-c1[2])*t);
+  return `rgb(${r},${g},${b})`;
+}
+function markerFillColor(o){
+  return heatMapMode ? heatColor(esperaMinutes(o.espera)/60) : typeColor(o);
+}
 
 // Toma cualquier texto con un NIS (p.ej. "Cliente 006-1049083", "NIS: 001049083", "1049083")
 // y devuelve la clave numérica final sin ceros a la izquierda, para poder cruzar listas
@@ -944,7 +976,7 @@ function renderEntities(){
     const sel = o.id===selectedOrderId;
     const isMT = o.tipo==='MT';
     const rad = (o.priority<=2?7:5) + (isMT?1.5:0) + (sel?3:0);
-    const fill = typeColor(o);
+    const fill = markerFillColor(o);
     const ring = o.electrodependiente ? '#E0218A' : (sel ? '#0E8DA6' : (priorityRingColor(o.priority)||'#ffffff'));
     const w = o.electrodependiente ? 3 : (sel?3:(o.priority<=2?2:1));
     const m = L.circleMarker([o.lat,o.lon], {radius:rad, weight:w, color:ring, fillColor:fill, fillOpacity:0.92})
@@ -1576,7 +1608,6 @@ function renderAll(){
   hudBar();
   renderMatrix();
   renderLog();
-  renderUnidades();
   renderPropuesta();
   if(activeTab==='nueva') renderNueva();
   updateRings();
@@ -2427,6 +2458,15 @@ document.getElementById('tipo-select').addEventListener('change', (e)=>{
   clearRankLines();
   renderAll();
 });
+document.getElementById('heatmap-toggle').addEventListener('click', ()=>{
+  heatMapMode = !heatMapMode;
+  const btn = document.getElementById('heatmap-toggle');
+  btn.classList.toggle('active', heatMapMode);
+  btn.textContent = heatMapMode ? '🔥 Mapa de calor: ON' : '🎨 Por tipo de orden';
+  document.getElementById('legend-heat').style.display = heatMapMode ? 'block' : 'none';
+  document.getElementById('legend-tipo').style.display = heatMapMode ? 'none' : 'block';
+  renderEntities();
+});
 document.querySelectorAll('#filter-strip .fage').forEach(b=>{
   b.addEventListener('click', ()=>{
     const band = b.dataset.fa;
@@ -2477,7 +2517,7 @@ async function fetchZonaWeather(zonaKey, coords){
 function weatherChipHtml(result){
   const coords = result.coords;
   if(!result.ok){
-    return '<div class="wchip wc-nodata"><span class="wc-icon">\u2014</span><div class="wc-info"><span class="wc-zona">'+coords.place+'</span><span class="wc-temp">Sin datos</span></div></div>';
+    return '<div class="wchip wc-nodata"><span class="wc-icon">\u2014</span><div class="wc-info"><span class="wc-zona">'+coords.place+'</span><span class="wc-temp">Sin datos</span><span class="wc-wind">&nbsp;</span></div></div>';
   }
   const cw = result.data.current_weather;
   const daily = result.data.daily;
