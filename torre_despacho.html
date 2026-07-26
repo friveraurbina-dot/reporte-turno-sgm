@@ -452,7 +452,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 
   <div class="prop-view" id="prop-view" style="display:none;">
     <div class="prop-wrap">
-      <div class="prop-badge">PROPUESTA &mdash; V3, pendiente de aprobación</div>
+      <div class="prop-badge" style="color:var(--green,#1F9D55); background:rgba(63,199,122,.14); border-color:var(--green,#1F9D55);">EN VIVO &mdash; pesos y ruteo confirmados</div>
       <h2>Análisis y Priorización</h2>
       <p class="prop-lead">Dos análisis <b>completamente independientes</b>, uno por flota: <b>Domiciliario</b> (móviles de Empalmes) y <b>Red</b> (cuadrillas de redes pesadas). No comparten factores ni tabla &mdash; cada uno tiene su propia lógica porque atienden trabajos distintos con equipos distintos. Ambas flotas despachan desde la misma Base de Control (Curauma), así que sí comparten ese punto de referencia para calcular traslado.</p>
       <p class="prop-note">Sobre el &quot;sector&quot;: los 3 archivos de origen no traen una columna de sector, y no fue posible obtenerlo por geocodificación inversa (el servicio de mapas externo está bloqueado en este entorno). Por ahora se usa <b>comuna</b> (Domiciliario) y <b>zona operativa</b> (Red) &mdash; los datos geográficos reales que sí trae el sistema. Si más adelante se dispone de un archivo con los límites de sector oficiales de Chilquinta (shapefile/GeoJSON/KML), se puede cruzar cada coordenada contra esos límites para un sector exacto.</p>
@@ -470,28 +470,9 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
           <tr><th>Factor</th><th>Peso</th><th>Cómo se calcula</th></tr>
           <tr><td>Urgencia</td><td>40%</td><td>Antigüedad promedio de las órdenes abiertas en la comuna</td></tr>
           <tr><td>Impacto</td><td>35%</td><td>Cantidad de órdenes (= clientes) abiertas en la comuna</td></tr>
-          <tr><td>Eficiencia de traslado</td><td>25%</td><td>Cercanía de la comuna a la Base + qué tan dispersas están sus órdenes entre sí</td></tr>
+          <tr><td>Eficiencia de traslado</td><td>25%</td><td>Tiempo real de viaje en auto desde la Base hasta la comuna (OSRM)</td></tr>
         </table>
-        <p class="prop-note">Top 15 comunas con datos de hoy (937 órdenes DOM abiertas, snapshot 26-07-2026):</p>
-        <table class="prop-table prop-table-num">
-          <tr><th>#</th><th>Comuna</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Dist. Base</th><th>Traslado desde Base</th><th>Puntaje</th></tr>
-          <tr><td>1</td><td>Valparaíso Poniente</td><td>147</td><td>147</td><td>99 h</td><td>10.5 km</td><td>22 min</td><td>96.0</td></tr>
-          <tr><td>2</td><td>Viña del Mar</td><td>125</td><td>125</td><td>104 h</td><td>14.1 km</td><td>29 min</td><td>94.2</td></tr>
-          <tr><td>3</td><td>Quilpué</td><td>93</td><td>93</td><td>83 h</td><td>13.6 km</td><td>28 min</td><td>86.2</td></tr>
-          <tr><td>4</td><td>Villa Alemana</td><td>72</td><td>72</td><td>91 h</td><td>18.5 km</td><td>38 min</td><td>84.6</td></tr>
-          <tr><td>5</td><td>Concón</td><td>52</td><td>52</td><td>94 h</td><td>21.2 km</td><td>44 min</td><td>82.5</td></tr>
-          <tr><td>6</td><td>Quillota</td><td>80</td><td>80</td><td>84 h</td><td>36.5 km</td><td>75 min</td><td>80.6</td></tr>
-          <tr><td>7</td><td>La Cruz</td><td>28</td><td>28</td><td>108 h</td><td>44.5 km</td><td>91 min</td><td>72.9</td></tr>
-          <tr><td>8</td><td>La Calera</td><td>56</td><td>56</td><td>80 h</td><td>49.3 km</td><td>101 min</td><td>70.0</td></tr>
-          <tr><td>9</td><td>Quintero</td><td>41</td><td>41</td><td>50 h</td><td>35.1 km</td><td>72 min</td><td>62.3</td></tr>
-          <tr><td>10</td><td>Valparaíso Oriente</td><td>30</td><td>30</td><td>41 h</td><td>7.5 km</td><td>15 min</td><td>60.2</td></tr>
-          <tr><td>11</td><td>Nogales</td><td>31</td><td>31</td><td>68 h</td><td>53.9 km</td><td>111 min</td><td>60.0</td></tr>
-          <tr><td>12</td><td>Hijuelas</td><td>29</td><td>29</td><td>66 h</td><td>51.8 km</td><td>106 min</td><td>53.8</td></tr>
-          <tr><td>13</td><td>Limache</td><td>30</td><td>30</td><td>32 h</td><td>29.0 km</td><td>60 min</td><td>51.3</td></tr>
-          <tr><td>14</td><td>Puchuncaví</td><td>18</td><td>18</td><td>53 h</td><td>43.3 km</td><td>89 min</td><td>51.2</td></tr>
-          <tr><td>15</td><td>Olmué</td><td>6</td><td>6</td><td>49 h</td><td>40.1 km</td><td>82 min</td><td>42.7</td></tr>
-        </table>
-        <p class="prop-note">27 comunas en total tienen órdenes DOM abiertas hoy. Valparaíso Poniente encabeza por volumen y cercanía a la Base; comunas lejanas como San Esteban o Los Andes quedan al final aunque tengan órdenes viejas, porque son pocas y caras de alcanzar en proporción.</p>
+        <div id="prop-dom-dynamic"><p class="prop-note">Abriendo… (se calcula al entrar a esta pestaña)</p></div>
       </div>
 
       <div id="prop-panel-red" style="display:none;">
@@ -502,29 +483,13 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
           <tr><th>Factor</th><th>Peso</th><th>Cómo se calcula</th></tr>
           <tr><td>Urgencia</td><td>40%</td><td>Antigüedad máxima de las órdenes abiertas en la zona</td></tr>
           <tr><td>Impacto</td><td>35%</td><td>Total de clientes afectados en la zona</td></tr>
-          <tr><td>Eficiencia de traslado</td><td>25%</td><td>Duración de la ruta interna (vecino más cercano) desde la Base, visitando todas las órdenes de la zona</td></tr>
+          <tr><td>Eficiencia de traslado</td><td>25%</td><td>Duración real de la ruta (vecino más cercano) desde la Base, visitando todas las órdenes de la zona (OSRM)</td></tr>
         </table>
-        <p class="prop-note">Zonas con órdenes Red (MT) abiertas hoy, con ruta sugerida (vecino más cercano) desde la Base:</p>
-        <table class="prop-table prop-table-num">
-          <tr><th>Zona</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Espera máx.</th><th>Km de ruta</th><th>Min. de ruta</th></tr>
-          <tr><td style="text-align:left">Zona Quillota</td><td>9</td><td>401</td><td>61.6 h</td><td>222.9 h</td><td>122.2</td><td>251</td></tr>
-          <tr><td style="text-align:left">Zona Costa</td><td>2</td><td>96</td><td>6.2 h</td><td>8.5 h</td><td>39.4</td><td>81</td></tr>
-          <tr><td style="text-align:left">Zona Aconcagua</td><td>1</td><td>18</td><td>183.3 h</td><td>183.3 h</td><td>133.7</td><td>274</td></tr>
-          <tr><td style="text-align:left">Zona Litoral</td><td>1</td><td>2</td><td>102.6 h</td><td>102.6 h</td><td>13.0</td><td>27</td></tr>
-        </table>
-        <p class="prop-note"><b>Hallazgo:</b> resolver las 13 órdenes MT abiertas en una sola ruta (sin agrupar por zona) implica ~283 km y ~581 min de solo traslado. Priorizando Zona Quillota primero &mdash; 9 de 13 órdenes y 401 de ~517 clientes afectados, en 251 min de ruta &mdash; se resuelve el 77% del impacto en menos de la mitad del tiempo de traslado total.</p>
+        <div id="prop-red-dynamic"><p class="prop-note">Se calcula al entrar a esta pestaña…</p></div>
       </div>
 
       <h3>Nota sobre los tiempos de traslado</h3>
-      <p class="prop-note">Los tiempos de traslado son una <b>estimación</b>: distancia en línea recta entre coordenadas &times; 1.3 (factor de sinuosidad de ruta) &divide; 38 km/h de velocidad promedio. No usan tráfico real ni la red vial. Si se necesita el tiempo real de cuadrilla en terreno, se puede conectar un servicio de rutas (Google Maps o OSRM) &mdash; ver pregunta 2 abajo.</p>
-
-      <h3>Decisiones que necesito de ti antes de implementar</h3>
-      <ol class="prop-list">
-        <li>¿Los pesos propuestos (Urgencia 40% / Impacto 35% / Eficiencia 25%, iguales para ambas flotas) están bien, o quieres pesos distintos para Domiciliario vs Red?</li>
-        <li>¿Sirve la estimación de traslado por distancia recta (línea recta &times;1.3 / 38 km/h), o prefieres conectar un servicio de rutas real para tiempos exactos?</li>
-        <li>¿El conmutador Mapa/Análisis queda como pestaña visible siempre, o como botón que abre la tabla en una ventana modal?</li>
-      </ol>
-      <div class="prop-cta">Responde estas preguntas en el chat para pasar de propuesta a implementación.</div>
+      <p class="prop-note">Los tiempos de traslado usan <b>rutas reales por calle</b>, calculadas con el servicio abierto <a href="https://project-osrm.org" target="_blank" rel="noopener">OSRM</a> directamente desde tu navegador (no requiere clave ni configuración). Si en algún momento ese servicio no responde, el tablero cae automáticamente a una estimación por línea recta (&times;1.3 de sinuosidad &divide; 38 km/h) y lo indica en la tabla con 🟡 en vez de 🟢. Es un servicio público gratuito, sin garantía de disponibilidad — si más adelante prefieren un servicio con SLA (Google Maps, Mapbox, HERE), se puede reemplazar la misma función sin tocar el resto del tablero.</p>
     </div>
   </div>
 
@@ -1097,6 +1062,161 @@ function hudBar(){
 function esperaMinutes(espera){
   const [h,m] = (espera||'00:00').split(':').map(Number);
   return (h||0)*60 + (m||0);
+}
+
+// ===== Analisis y Priorizacion: agregacion + tiempos reales de traslado (OSRM) =====
+function pctRankVal(vals, v){
+  const s = vals.slice().sort((a,b)=>a-b); const n = s.length;
+  if(n<=1) return 100;
+  let idx = 0; for(const x of s){ if(x<=v) idx++; }
+  return 100*(idx-1)/(n-1);
+}
+function haversineKm(a,b){
+  const R=6371, toRad = d=>d*Math.PI/180;
+  const dphi=toRad(b.lat-a.lat), dlmb=toRad(b.lon-a.lon);
+  const p1=toRad(a.lat), p2=toRad(b.lat);
+  const x=Math.sin(dphi/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dlmb/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+function estTravelMin(km){ return (km*1.3)/38*60; }
+
+async function osrmDurationsFromBase(base, points){
+  try{
+    const coords = [base, ...points].map(p=>p.lon.toFixed(6)+','+p.lat.toFixed(6)).join(';');
+    const url = 'https://router.project-osrm.org/table/v1/driving/'+coords+'?sources=0&annotations=duration,distance';
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('http '+r.status);
+    const d = await r.json();
+    if(d.code!=='Ok') throw new Error(d.code);
+    const durMin = d.durations[0].slice(1).map(s=> s==null? null : s/60);
+    const distKm = d.distances[0].slice(1).map(m=> m==null? null : m/1000);
+    return {ok:true, durMin, distKm};
+  }catch(e){ return {ok:false, error: e.message}; }
+}
+async function osrmMatrix(points){
+  try{
+    const coords = points.map(p=>p.lon.toFixed(6)+','+p.lat.toFixed(6)).join(';');
+    const url = 'https://router.project-osrm.org/table/v1/driving/'+coords+'?annotations=duration,distance';
+    const r = await fetch(url);
+    if(!r.ok) throw new Error('http '+r.status);
+    const d = await r.json();
+    if(d.code!=='Ok') throw new Error(d.code);
+    const durMin = d.durations.map(row=>row.map(s=> s==null?null:s/60));
+    return {ok:true, durMin};
+  }catch(e){ return {ok:false, error: e.message}; }
+}
+
+function aggDomByComuna(orders){
+  const byComuna = {};
+  orders.forEach(o=>{
+    if(o.lat==null||o.lon==null) return;
+    const k = o.comuna || 'Sin comuna';
+    (byComuna[k] = byComuna[k]||[]).push(o);
+  });
+  return Object.keys(byComuna).map(comuna=>{
+    const list = byComuna[comuna];
+    const lat = list.reduce((s,o)=>s+o.lat,0)/list.length;
+    const lon = list.reduce((s,o)=>s+o.lon,0)/list.length;
+    const esperas = list.map(o=>esperaMinutes(o.espera)/60);
+    const clientes = list.reduce((s,o)=>s+(o.clientes||0),0);
+    return {key:comuna, n:list.length, clientes, avgEsperaH: esperas.reduce((a,b)=>a+b,0)/esperas.length, lat, lon, list};
+  });
+}
+function aggRedByZona(orders){
+  const byZona = {};
+  orders.forEach(o=>{
+    const k = o.zona || 'Sin zona';
+    (byZona[k] = byZona[k]||[]).push(o);
+  });
+  return Object.keys(byZona).map(zona=>{
+    const list = byZona[zona];
+    const esperas = list.map(o=>esperaMinutes(o.espera)/60);
+    const clientes = list.reduce((s,o)=>s+(o.clientes||0),0);
+    const geoList = list.filter(o=>o.lat!=null && o.lon!=null);
+    return {key:zona, n:list.length, clientes,
+      avgEsperaH: esperas.reduce((a,b)=>a+b,0)/esperas.length,
+      maxEsperaH: Math.max(...esperas), list: geoList};
+  });
+}
+function scoreRows(rows, esperaKey){
+  const nVals = rows.map(r=>r.n);
+  const espVals = rows.map(r=>r[esperaKey]);
+  rows.forEach(r=>{
+    const pe = pctRankVal(espVals, r[esperaKey]);
+    const pn = pctRankVal(nVals, r.n);
+    const effRaw = -(r.travelMin==null?9999:r.travelMin);
+    const peff = pctRankVal(rows.map(x=> -(x.travelMin==null?9999:x.travelMin)), effRaw);
+    r.score = 0.40*pe + 0.35*pn + 0.25*peff;
+  });
+  rows.sort((a,b)=>b.score-a.score);
+  return rows;
+}
+
+let propDomLoaded = false, propRedLoaded = false;
+
+async function renderPropDom(){
+  if(propDomLoaded) return; propDomLoaded = true;
+  const el = document.getElementById('prop-dom-dynamic');
+  if(!el || !state) return;
+  el.innerHTML = '<p class="prop-note">Calculando tiempos reales de traslado (OSRM)…</p>';
+  const orders = state.orders.filter(o=>o.tipo==='DOM' && !o.electrodependiente);
+  const rows = aggDomByComuna(orders);
+  const osrm = await osrmDurationsFromBase(BASE_CURAUMA, rows.map(r=>({lat:r.lat,lon:r.lon})));
+  let sourceNote;
+  if(osrm.ok){
+    rows.forEach((r,i)=>{ r.travelMin = osrm.durMin[i]; });
+    sourceNote = '🟢 Tiempos reales de ruta por calle (OSRM)';
+  } else {
+    rows.forEach(r=>{ r.travelMin = estTravelMin(haversineKm(BASE_CURAUMA, {lat:r.lat, lon:r.lon})); });
+    sourceNote = '🟡 Sin conexión al servicio de rutas ahora mismo — usando estimación por línea recta (×1.3 / 38 km/h)';
+  }
+  scoreRows(rows, 'avgEsperaH');
+  const top = rows.slice(0,20);
+  el.innerHTML = `
+    <p class="prop-note"><b>${sourceNote}</b></p>
+    <table class="prop-table prop-table-num">
+      <tr><th>#</th><th>Comuna</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Traslado desde Base</th><th>Puntaje</th></tr>
+      ${top.map((r,i)=>`<tr><td>${i+1}</td><td style="text-align:left">${r.key}</td><td>${r.n}</td><td>${r.clientes}</td><td>${r.avgEsperaH.toFixed(0)} h</td><td>${r.travelMin==null?'—':Math.round(r.travelMin)+' min'}</td><td>${r.score.toFixed(1)}</td></tr>`).join('')}
+    </table>
+    <p class="prop-note">${rows.length} comunas con órdenes Domiciliario abiertas en este snapshot (top ${top.length} mostrado).</p>
+  `;
+}
+
+async function renderPropRed(){
+  if(propRedLoaded) return; propRedLoaded = true;
+  const el = document.getElementById('prop-red-dynamic');
+  if(!el || !state) return;
+  el.innerHTML = '<p class="prop-note">Calculando ruta y tiempos reales de traslado (OSRM)…</p>';
+  const orders = state.orders.filter(o=>o.tipo==='MT' && !o.electrodependiente);
+  const rows = aggRedByZona(orders);
+  let anyReal = false;
+  for(const r of rows){
+    if(!r.list.length){ r.travelMin = null; continue; }
+    const pts = [BASE_CURAUMA, ...r.list.map(o=>({lat:o.lat, lon:o.lon}))];
+    const mat = await osrmMatrix(pts);
+    let durMin, real;
+    if(mat.ok){ durMin = mat.durMin; real = true; anyReal = true; }
+    else { durMin = pts.map(p1=>pts.map(p2=>estTravelMin(haversineKm(p1,p2)))); real = false; }
+    let remaining = pts.map((_,idx)=>idx).filter(idx=>idx!==0);
+    let cur = 0, total = 0;
+    while(remaining.length){
+      let bestIdx=-1, bestVal=Infinity;
+      remaining.forEach(idx=>{ const v=durMin[cur][idx]; if(v!=null && v<bestVal){bestVal=v; bestIdx=idx;} });
+      if(bestIdx===-1) break;
+      total += bestVal; cur = bestIdx;
+      remaining = remaining.filter(idx=>idx!==bestIdx);
+    }
+    r.travelMin = total; r._real = real;
+  }
+  const sourceNote = anyReal ? '🟢 Ruta y tiempos reales por calle (OSRM)' : '🟡 Sin conexión al servicio de rutas ahora mismo — usando estimación por línea recta (×1.3 / 38 km/h)';
+  scoreRows(rows, 'maxEsperaH');
+  el.innerHTML = `
+    <p class="prop-note"><b>${sourceNote}</b></p>
+    <table class="prop-table prop-table-num">
+      <tr><th>Zona</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Espera máx.</th><th>Min. de ruta desde Base</th><th>Puntaje</th></tr>
+      ${rows.map(r=>`<tr><td style="text-align:left">${zonaLabel(r.key)}</td><td>${r.n}</td><td>${r.clientes}</td><td>${r.avgEsperaH.toFixed(1)} h</td><td>${r.maxEsperaH.toFixed(1)} h</td><td>${r.travelMin==null?'—':Math.round(r.travelMin)+' min'}</td><td>${r.score.toFixed(1)}</td></tr>`).join('')}
+    </table>
+  `;
 }
 
 function logCardHtml(o){
@@ -2757,6 +2877,7 @@ table.prop-table tr:hover td{background:rgba(210,35,42,.04);}
       if(weatherStrip) weatherStrip.style.display = 'none';
       propView.style.display = 'block';
       btnAn.classList.add('active'); btnMapa.classList.remove('active');
+      if(typeof renderPropDom === 'function') renderPropDom();
     }
     btnMapa.addEventListener('click', showMapa);
     btnAn.addEventListener('click', showAnalisis);
@@ -2774,6 +2895,7 @@ table.prop-table tr:hover td{background:rgba(210,35,42,.04);}
     btnRed.addEventListener('click', function(){
       panelRed.style.display=''; panelDom.style.display='none';
       btnRed.classList.add('active'); btnDom.classList.remove('active');
+      if(typeof renderPropRed === 'function') renderPropRed();
     });
   }
   if(document.readyState === 'loading'){
