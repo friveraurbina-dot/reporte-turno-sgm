@@ -452,69 +452,68 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 
   <div class="prop-view" id="prop-view" style="display:none;">
     <div class="prop-wrap">
-      <div class="prop-badge">PROPUESTA &mdash; pendiente de aprobación</div>
+      <div class="prop-badge">PROPUESTA &mdash; V2, pendiente de aprobación</div>
       <h2>Pestaña &quot;Análisis y Priorización&quot;</h2>
-      <p class="prop-lead">Vista nueva que ordena automáticamente las órdenes abiertas (Red/MT y Domiciliario) de mayor a menor prioridad, combinando tiempo de espera, cantidad de clientes afectados y ubicación, para apoyar la decisión de a qué atender primero.</p>
+      <p class="prop-lead">Vista nueva que ordena las órdenes abiertas (Red/MT y Domiciliario) de mayor a menor prioridad. Esta versión agrega dos cosas que faltaban: <b>sectores geográficos específicos</b> calculados directo desde las coordenadas (no solo comuna/zona), y <b>tiempos de traslado estimados</b> entre puntos, para que el top 10/20 refleje no solo qué está más urgente sino qué conviene resolver junto.</p>
 
-      <h3>1. Modelo de priorización</h3>
-      <table class="prop-table">
-        <tr><th>Factor</th><th>Qué mide</th><th>Por qué</th></tr>
-        <tr><td>Tiempo de espera</td><td>Antigüedad de la orden (horas)</td><td>Es el SLA principal; entre más vieja, más urgente</td></tr>
-        <tr><td>Clientes afectados</td><td>Campo <code>clientes</code> de la orden</td><td>En Red, una sola orden puede afectar a decenas o cientos de clientes &mdash; debe pesar fuerte</td></tr>
-        <tr><td>Comuna / Zona</td><td>Agrupación geográfica</td><td>No pondera el puntaje; se muestra como columna informativa para agrupar rutas</td></tr>
-        <tr><td>Emergencia / Electrodependiente</td><td>Flags existentes en los datos</td><td>Si están activos, la orden salta automáticamente al tope (puntaje 100)</td></tr>
-      </table>
-      <p class="prop-note">Cada orden recibe un puntaje 0&ndash;100 por <b>percentil dentro de su propio grupo</b> (Red o Domiciliario), no por umbral fijo en horas &mdash; así el modelo se autoajusta al backlog del momento.</p>
+      <h3>1. Dos niveles de priorización</h3>
+      <p class="prop-note">Se proponen <b>dos rankings complementarios</b>: uno por <b>orden individual</b> (la orden más urgente) y uno por <b>sector geográfico</b> (el grupo de órdenes cercanas entre sí que conviene despachar en una sola salida). El segundo es el que responde directamente a &quot;top 10 / top 20 de sectores&quot;.</p>
 
-      <h3>2. Pesos por defecto propuestos</h3>
-      <table class="prop-table">
-        <tr><th>Tipo</th><th>Peso espera</th><th>Peso clientes</th><th>Razón</th></tr>
-        <tr><td><b>Red (MT)</b></td><td>45%</td><td>55%</td><td>El impacto (clientes afectados) suele ser tan o más decisivo que la antigüedad</td></tr>
-        <tr><td><b>Domiciliario (DOM)</b></td><td>75%</td><td>25%</td><td>Casi siempre es 1 orden = 1 cliente, así que la antigüedad manda</td></tr>
-      </table>
-      <p class="prop-note"><b>Sobre &quot;sector&quot;:</b> los datos actuales traen comuna y zona operativa, pero no un campo de sector más fino. Si existe un campo de sector en el sistema de origen que no se está usando, indicarlo para incorporarlo.</p>
-
-      <h3>3. Ejemplo con datos reales de hoy (snapshot 25-07-2026)</h3>
-      <p class="prop-note">Red (MT) &mdash; las 13 órdenes abiertas, ordenadas por prioridad:</p>
+      <h3>2. Domiciliario &mdash; sectores por coordenadas</h3>
+      <p class="prop-note">Se agrupan las 1083 órdenes DOM abiertas en celdas de <b>~900 x 900 metros</b> usando su latitud/longitud real (no comuna, que es demasiado grande, ni una sola coordenada). Con los datos de hoy esto arroja <b>464 micro-sectores</b>; 147 de ellos tienen 3 o más órdenes agrupables en la misma salida.</p>
+      <p class="prop-note">Top 15 micro-sectores DOM, ordenados por un puntaje que combina <b>antigüedad promedio del sector (35%)</b>, <b>cantidad de órdenes agrupables (30%)</b> y <b>eficiencia de traslado (35%)</b> &mdash; qué tan cerca está el sector de la Base y qué tan compacto es (poco recorrido interno):</p>
       <table class="prop-table prop-table-num">
-        <tr><th>#</th><th>Orden</th><th>Comuna</th><th>Clientes</th><th>Espera</th><th>Puntaje</th><th>Abiertas en la comuna</th></tr>
-        <tr><td>1</td><td>1660483-1</td><td>Quillota</td><td>27</td><td>55:59</td><td>71.2</td><td>2</td></tr>
-        <tr><td>2</td><td>1665491-1</td><td>Limache</td><td>112</td><td>11:17</td><td>69.2</td><td>1</td></tr>
-        <tr><td>3</td><td>1664672-1</td><td>Nogales</td><td>26</td><td>31:30</td><td>58.3</td><td>3</td></tr>
-        <tr><td>4</td><td>1665616-1</td><td>Quintero</td><td>27</td><td>08:30</td><td>56.2</td><td>2</td></tr>
-        <tr><td>5</td><td>1644679-1</td><td>Los Andes</td><td>18</td><td>183:19</td><td>55.8</td><td>1</td></tr>
-        <tr><td>6</td><td>1665917-1</td><td>Quillota</td><td>179</td><td>02:58</td><td>55.0</td><td>2</td></tr>
-        <tr><td>7</td><td>1665454-1</td><td>La Calera</td><td>23</td><td>16:10</td><td>50.0</td><td>1</td></tr>
-        <tr><td>8</td><td>1665887-1</td><td>Quintero</td><td>69</td><td>03:50</td><td>49.6</td><td>2</td></tr>
-        <tr><td>9</td><td>1638400-1</td><td>Nogales</td><td>1</td><td>201:38</td><td>45.8</td><td>3</td></tr>
-        <tr><td>10</td><td>1633422-1</td><td>Nogales</td><td>0</td><td>222:54</td><td>45.0</td><td>3</td></tr>
+        <tr><th>#</th><th>Comuna</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Dist. Base</th><th>Traslado desde Base</th><th>Puntaje</th></tr>
+        <tr><td>1</td><td>Valparaíso Poniente</td><td>9</td><td>9</td><td>130 h</td><td>11.0 km</td><td>23 min</td><td>94.0</td></tr>
+        <tr><td>2</td><td>Viña del Mar</td><td>9</td><td>9</td><td>144 h</td><td>14.4 km</td><td>30 min</td><td>92.6</td></tr>
+        <tr><td>3</td><td>Valparaíso Poniente</td><td>3</td><td>3</td><td>167 h</td><td>8.1 km</td><td>17 min</td><td>91.9</td></tr>
+        <tr><td>4</td><td>Valparaíso Poniente</td><td>7</td><td>7</td><td>123 h</td><td>11.7 km</td><td>24 min</td><td>91.3</td></tr>
+        <tr><td>5</td><td>Viña del Mar</td><td>10</td><td>10</td><td>130 h</td><td>16.1 km</td><td>33 min</td><td>90.2</td></tr>
+        <tr><td>6</td><td>Valparaíso Poniente</td><td>7</td><td>7</td><td>117 h</td><td>12.7 km</td><td>26 min</td><td>89.5</td></tr>
+        <tr><td>7</td><td>Viña del Mar</td><td>4</td><td>4</td><td>155 h</td><td>14.4 km</td><td>29 min</td><td>89.4</td></tr>
+        <tr><td>8</td><td>Valparaíso Poniente</td><td>6</td><td>6</td><td>105 h</td><td>9.3 km</td><td>19 min</td><td>89.4</td></tr>
+        <tr><td>9</td><td>Valparaíso Poniente</td><td>3</td><td>3</td><td>180 h</td><td>12.3 km</td><td>25 min</td><td>89.2</td></tr>
+        <tr><td>10</td><td>Quilpué</td><td>4</td><td>4</td><td>137 h</td><td>13.2 km</td><td>27 min</td><td>88.5</td></tr>
+        <tr><td>11</td><td>Viña del Mar</td><td>7</td><td>7</td><td>128 h</td><td>17.9 km</td><td>37 min</td><td>88.0</td></tr>
+        <tr><td>12</td><td>Valparaíso Poniente</td><td>7</td><td>7</td><td>99 h</td><td>10.4 km</td><td>21 min</td><td>88.0</td></tr>
+        <tr><td>13</td><td>Viña del Mar</td><td>10</td><td>10</td><td>111 h</td><td>15.3 km</td><td>31 min</td><td>87.9</td></tr>
+        <tr><td>14</td><td>Quilpué</td><td>5</td><td>5</td><td>103 h</td><td>11.1 km</td><td>23 min</td><td>87.3</td></tr>
+        <tr><td>15</td><td>Valparaíso Poniente</td><td>4</td><td>4</td><td>102 h</td><td>9.2 km</td><td>19 min</td><td>86.8</td></tr>
       </table>
-      <p class="prop-note">Domiciliario (DOM) &mdash; top 5 de 1083 órdenes abiertas:</p>
+      <p class="prop-note">Lectura: el sector #1 no es la orden individual más antigua, pero es el que más rinde por salida &mdash; 9 órdenes viejas, todas a 23 minutos de la Base, dentro de un radio de ~260 m entre sí.</p>
+
+      <h3>3. Red (MT) &mdash; prioridad por zona con ruta y tiempo de traslado</h3>
+      <p class="prop-note">Con solo 13 órdenes MT abiertas, agrupar por coordenada fina no aporta &mdash; se usa la <b>zona operativa</b> (ya existente en el tablero) y, dentro de cada zona, se calcula una <b>ruta sugerida</b> (vecino más cercano desde la Base) con su tiempo de traslado estimado:</p>
       <table class="prop-table prop-table-num">
-        <tr><th>#</th><th>Orden</th><th>Comuna</th><th>Clientes</th><th>Espera</th><th>Puntaje</th><th>Abiertas en la comuna</th></tr>
-        <tr><td>1</td><td>1632343-1</td><td>Valparaíso Poniente</td><td>1</td><td>224:23</td><td>100.0</td><td>157</td></tr>
-        <tr><td>2</td><td>1632793-1</td><td>Valparaíso Poniente</td><td>1</td><td>223:50</td><td>99.9</td><td>157</td></tr>
-        <tr><td>3</td><td>1633850-1</td><td>Valparaíso Poniente</td><td>1</td><td>222:06</td><td>99.9</td><td>157</td></tr>
-        <tr><td>4</td><td>1633933-1</td><td>Valparaíso Poniente</td><td>1</td><td>221:55</td><td>99.8</td><td>157</td></tr>
-        <tr><td>5</td><td>1634681-1</td><td>Valparaíso Poniente</td><td>1</td><td>219:50</td><td>99.7</td><td>157</td></tr>
+        <tr><th>Zona</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Espera máx.</th><th>Km de ruta</th><th>Min. de ruta</th></tr>
+        <tr><td style="text-align:left">Zona Quillota</td><td>9</td><td>401</td><td>61.6 h</td><td>222.9 h</td><td>122.2</td><td>251</td></tr>
+        <tr><td style="text-align:left">Zona Costa</td><td>2</td><td>96</td><td>6.2 h</td><td>8.5 h</td><td>39.4</td><td>81</td></tr>
+        <tr><td style="text-align:left">Zona Aconcagua</td><td>1</td><td>18</td><td>183.3 h</td><td>183.3 h</td><td>133.7</td><td>274</td></tr>
+        <tr><td style="text-align:left">Zona Litoral</td><td>1</td><td>2</td><td>102.6 h</td><td>102.6 h</td><td>13.0</td><td>27</td></tr>
       </table>
-      <p class="prop-note">En Domiciliario el orden resultante es, en la práctica, por antigüedad &mdash; el criterio esperado, ya que clientes casi no varía.</p>
+      <p class="prop-note"><b>Hallazgo concreto:</b> resolver las 13 órdenes MT en una sola ruta (sin agrupar por zona) implica ~283 km y <b>~581 minutos</b> (9.7 h) de solo traslado. Priorizando <b>Zona Quillota</b> primero &mdash; 9 de las 13 órdenes y 401 de los ~517 clientes afectados, en una ruta de 251 min &mdash; se resuelve el 77% del impacto en menos de la mitad del tiempo de traslado total. Zona Aconcagua (1 orden, 18 clientes) es la más cara de alcanzar en proporción a su impacto: 274 min de traslado por una sola orden.</p>
 
-      <h3>4. Diseño de la sub-pestaña (por tipo)</h3>
-      <ul class="prop-list">
-        <li>Filtros: zona, comuna, rango de antigüedad (reutilizando los que ya existen en el tablero).</li>
-        <li>Columnas: Rank, Orden, Comuna, Zona, Clientes, Espera, Puntaje, Badges (⚠ Emergencia / ❤ Electrodependiente / 🔗 agrupable en comuna).</li>
-        <li>Click en una fila centra el mapa en esa orden.</li>
-        <li>Exportar a Excel, reutilizando el exportador ya existente.</li>
-      </ul>
+      <h3>4. Fórmula de puntaje actualizada (nivel sector)</h3>
+      <table class="prop-table">
+        <tr><th>Factor</th><th>Peso DOM</th><th>Peso Red</th><th>Cómo se calcula</th></tr>
+        <tr><td>Urgencia</td><td>35%</td><td>40%</td><td>Antigüedad promedio (DOM) o máxima (Red) de las órdenes del sector/zona</td></tr>
+        <tr><td>Impacto</td><td>30%</td><td>35%</td><td>Órdenes agrupables (DOM) o clientes afectados (Red) del sector/zona</td></tr>
+        <tr><td>Eficiencia de traslado</td><td>35%</td><td>25%</td><td>Cercanía a la Base + compacidad del sector (DOM), o duración de la ruta interna (Red)</td></tr>
+      </table>
+      <p class="prop-note">El puntaje por <b>orden individual</b> (Objetivo original: Red 45/55, Domiciliario 75/25 espera/clientes) se mantiene disponible como vista de detalle al entrar a un sector.</p>
 
-      <h3>5. Decisiones pendientes antes de implementar</h3>
+      <h3>5. Nota sobre los tiempos de traslado</h3>
+      <p class="prop-note">Los tiempos de traslado son una <b>estimación</b>: distancia en línea recta entre coordenadas &times; 1.3 (factor de sinuosidad de ruta) &divide; 38 km/h de velocidad promedio. No usan tráfico real ni la red vial. Son suficientes para ordenar prioridades, pero si se necesita el tiempo real de cuadrilla en terreno, se puede conectar un servicio de rutas (Google Maps o OSRM) que entregue minutos exactos por calle &mdash; esto es una decisión aparte (ver más abajo).</p>
+
+      <h3>6. Decisiones que necesito de ti antes de implementar</h3>
       <ol class="prop-list">
-        <li>¿Los pesos por defecto propuestos (Red 45/55, Domiciliario 75/25) hacen sentido, o prefieres otros?</li>
-        <li>¿&quot;Sector&quot; es un campo distinto que existe en el sistema de origen, o comuna/zona es suficiente?</li>
-        <li>¿El conmutador Mapa/Análisis debe quedar como pestaña visible siempre, o como botón que abre la tabla en una ventana modal?</li>
+        <li>¿El tamaño de celda para sectores DOM (~900 m) te hace sentido, o prefieres sectores más grandes/pequeños?</li>
+        <li>¿Los pesos propuestos a nivel sector (Urgencia/Impacto/Eficiencia: DOM 35/30/35, Red 40/35/25) están bien, o los ajustamos?</li>
+        <li>¿Sirve la estimación de traslado por distancia recta (línea recta &times;1.3 / 38 km/h), o prefieres conectar un servicio de rutas real para tiempos exactos?</li>
+        <li>¿&quot;Sector&quot; es un campo que ya existe en el sistema de origen y no estoy usando, o coordenadas + comuna/zona es suficiente?</li>
+        <li>¿El conmutador Mapa/Análisis queda como pestaña visible siempre, o como botón que abre la tabla en una ventana modal?</li>
       </ol>
-      <div class="prop-cta">Responde estas 3 preguntas en el chat para pasar de propuesta a implementación.</div>
+      <div class="prop-cta">Responde estas preguntas en el chat para pasar de propuesta a implementación.</div>
     </div>
   </div>
 
