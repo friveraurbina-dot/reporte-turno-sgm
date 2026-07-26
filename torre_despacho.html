@@ -1218,6 +1218,8 @@ async function renderPropRed(){
     </table>
   `;
 }
+window.renderPropDom = renderPropDom; window.renderPropRed = renderPropRed;
+
 
 function logCardHtml(o){
   const crewLabel = o.crew ? (state.crews.find(c=>c.id===o.crew)||{}).label || o.crew : null;
