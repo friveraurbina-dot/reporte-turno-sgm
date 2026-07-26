@@ -1170,6 +1170,73 @@ function scoreRows(rows, esperaKey){
 
 let propDomLoaded = false, propRedLoaded = false;
 
+function countDomMovilesPorComuna(){
+  const orderByCrew = {};
+  state.orders.forEach(function(o){ if(o.crew) orderByCrew[o.crew] = o; });
+  const map = {};
+  (state.crews||[]).forEach(function(c){
+    const o = orderByCrew[c.id];
+    if(!o || o.tipo !== 'DOM') return;
+    const key = o.comuna || 'Sin comuna';
+    map[key] = (map[key]||0) + 1;
+  });
+  return map;
+}
+
+function buildRedistribHtml(rows, domMoviles){
+  const withMoviles = rows.map(function(r){
+    const moviles = domMoviles[r.key] || 0;
+    const clientesPorMovil = moviles>0 ? (r.clientes/moviles) : Infinity;
+    return Object.assign({}, r, {moviles: moviles, clientesPorMovil: clientesPorMovil});
+  });
+  const withCoverage = withMoviles.filter(function(r){ return r.moviles>0; });
+  const avgCPM = withCoverage.length ? withCoverage.reduce(function(a,r){return a+r.clientesPorMovil;},0)/withCoverage.length : 0;
+
+  function tag(r){
+    if(r.moviles===0) return {icon:'🔴', label:'Sin cobertura'};
+    if(r.clientesPorMovil > avgCPM*1.5) return {icon:'🟠', label:'Reforzar'};
+    if(r.moviles>=2 && r.clientesPorMovil < avgCPM*0.5) return {icon:'🟢', label:'Posible liberar móvil'};
+    return {icon:'⚪', label:'Equilibrado'};
+  }
+  withMoviles.forEach(function(r){ r.tagInfo = tag(r); });
+
+  const sortedByScore = withMoviles.slice().sort(function(a,b){ return b.score - a.score; });
+  const tableRows = sortedByScore.slice(0,20);
+
+  const needRefuerzo = withMoviles.filter(function(r){ return r.tagInfo.label==='Sin cobertura' || r.tagInfo.label==='Reforzar'; })
+    .sort(function(a,b){ return b.score - a.score; });
+  const donantes = withMoviles.filter(function(r){ return r.tagInfo.label==='Posible liberar móvil'; })
+    .sort(function(a,b){ return a.clientesPorMovil - b.clientesPorMovil; });
+
+  const nSug = Math.min(needRefuerzo.length, donantes.length, 6);
+  let sugerencias = '';
+  if(nSug>0){
+    const items = [];
+    for(let i=0;i<nSug;i++){
+      const dest = needRefuerzo[i], orig = donantes[i];
+      items.push(`<li>Mover 1 móvil de <b>${orig.key}</b> (${orig.moviles} móviles, ${orig.clientes} clientes en backlog) hacia <b>${dest.key}</b> (${dest.moviles} móviles, ${dest.clientes} clientes, puntaje ${dest.score.toFixed(1)}).</li>`);
+    }
+    sugerencias = `<ol class="prop-list">${items.join('')}</ol>`;
+  } else {
+    sugerencias = '<p class="prop-note">No hay comunas con superávit claro de móviles para sugerir un movimiento en este snapshot.</p>';
+  }
+
+  return `
+    <h3>Móviles Empalmes: distribución actual y propuesta de redistribución</h3>
+    <p class="prop-note">Cruza la misma priorización de arriba con la cantidad de móviles de Empalmes que hoy tienen una orden Domiciliario activa en cada comuna (deducido de la cuadrilla asignada en las órdenes abiertas). <b>Clientes / móvil</b> es el backlog de clientes dividido por los móviles actualmente ahí — más alto es peor cobertura.</p>
+    <table class="prop-table prop-table-num">
+      <tr><th>Comuna</th><th>Puntaje</th><th>Clientes (backlog)</th><th>Móviles Empalmes</th><th>Clientes / móvil</th><th>Estado</th></tr>
+      ${tableRows.map(function(r){
+        const cpm = r.moviles>0 ? r.clientesPorMovil.toFixed(1) : '—';
+        return `<tr><td style="text-align:left">${r.key}</td><td>${r.score.toFixed(1)}</td><td>${r.clientes}</td><td>${r.moviles}</td><td>${cpm}</td><td>${r.tagInfo.icon} ${r.tagInfo.label}</td></tr>`;
+      }).join('')}
+    </table>
+    <h3>Propuesta de redistribución</h3>
+    ${sugerencias}
+    <p class="prop-note">Propuesta automática por puntaje y cobertura relativa; no considera tiempo de traslado entre comunas de origen/destino ni disponibilidad real del móvil en este instante — es un punto de partida para que despacho confirme antes de mover unidades.</p>
+  `;
+}
+
 async function renderPropDom(){
   if(propDomLoaded) return; propDomLoaded = true;
   const el = document.getElementById('prop-dom-dynamic');
@@ -1195,6 +1262,7 @@ async function renderPropDom(){
       ${top.map((r,i)=>`<tr><td>${i+1}</td><td style="text-align:left">${r.key}</td><td>${r.n}</td><td>${r.clientes}</td><td>${r.avgEsperaH.toFixed(0)} h</td><td>${r.travelMin==null?'—':Math.round(r.travelMin)+' min'}</td><td>${r.score.toFixed(1)}</td></tr>`).join('')}
     </table>
     <p class="prop-note">${rows.length} comunas con órdenes Domiciliario abiertas en este snapshot (top ${top.length} mostrado).</p>
+    ${buildRedistribHtml(rows, countDomMovilesPorComuna())}
   `;
 }
 
