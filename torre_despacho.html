@@ -460,6 +460,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
       <div class="prop-subtabs">
         <button class="prop-subtab active" id="subtab-dom" type="button">🏠 Domiciliario &mdash; Empalmes</button>
         <button class="prop-subtab" id="subtab-red" type="button">⚡ Red &mdash; Cuadrillas pesadas</button>
+        <button class="prop-subtab" id="subtab-cap" type="button">📈 Capacidad y Patrones</button>
       </div>
 
       <div id="prop-panel-dom">
@@ -491,6 +492,19 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
       <h3>Nota sobre los tiempos de traslado</h3>
       <p class="prop-note">Los tiempos de traslado usan <b>rutas reales por calle</b>, calculadas con el servicio abierto <a href="https://project-osrm.org" target="_blank" rel="noopener">OSRM</a> directamente desde tu navegador (no requiere clave ni configuración). Si en algún momento ese servicio no responde, el tablero cae automáticamente a una estimación por línea recta (&times;1.3 de sinuosidad &divide; 38 km/h) y lo indica en la tabla con 🟡 en vez de 🟢. Es un servicio público gratuito, sin garantía de disponibilidad — si más adelante prefieren un servicio con SLA (Google Maps, Mapbox, HERE), se puede reemplazar la misma función sin tocar el resto del tablero.</p>
     </div>
+
+      <div id="prop-panel-cap" style="display:none;">
+        <h3>Objetivo</h3>
+        <p class="prop-note">Dos vistas operativas que no priorizan el backlog actual, sino que ayudan a planificar turnos y a detectar zonas con poca cobertura de cuadrillas frente a su carga de trabajo.</p>
+
+        <h3>Patrón horario de creación de órdenes</h3>
+        <p class="prop-note">Distribución de las órdenes abiertas según el bloque horario en que se crearon (dato <code>bloqueHorario</code>). Sirve para dimensionar turnos de despacho según cuándo se concentra la demanda, no para decidir a quién atender primero.</p>
+        <div id="prop-cap-horario"><p class="prop-note">Se calcula al entrar a esta pestaña…</p></div>
+
+        <h3>Brecha de cuadrillas vs. backlog por zona</h3>
+        <p class="prop-note">Cruza el backlog de órdenes abiertas de cada zona operativa con la cantidad de cuadrillas asignadas a esa zona (activas: despachadas, en camino o en sitio; sin actividad: disponibles pero no operando). La columna <b>Órdenes / cuadrilla</b> ordena las zonas de mayor a menor presión — las de arriba son las que menos cuadrillas tienen en relación a su carga.</p>
+        <div id="prop-cap-gap"><p class="prop-note">Se calcula al entrar a esta pestaña…</p></div>
+      </div>
   </div>
 
   <div class="footer-bar">
@@ -1219,6 +1233,75 @@ async function renderPropRed(){
   `;
 }
 window.renderPropDom = renderPropDom; window.renderPropRed = renderPropRed;
+
+// ===== Capacidad y Patrones: horario de creacion + brecha cuadrillas vs backlog =====
+function aggBloqueHorario(orders){
+  const orderSeq = ['Madrugada (00-06h)','Mañana (06-12h)','Tarde (12-18h)','Noche (18-24h)'];
+  const map = {};
+  orders.forEach(function(o){
+    const b = o.bloqueHorario || 'Sin dato';
+    if(!map[b]) map[b] = {bloque:b, dom:0, red:0, clientes:0, total:0};
+    map[b].total++;
+    map[b].clientes += (o.clientes||0);
+    if(o.tipo==='DOM') map[b].dom++; else map[b].red++;
+  });
+  const rows = Object.values(map);
+  rows.sort(function(a,b){ return orderSeq.indexOf(a.bloque) - orderSeq.indexOf(b.bloque); });
+  return rows;
+}
+
+function aggCrewGapByZona(orders, crews){
+  const map = {};
+  orders.forEach(function(o){
+    const z = o.zona || 'Sin zona';
+    if(!map[z]) map[z] = {zona:z, ordenes:0, clientes:0, cuadrillasTotal:0, cuadrillasActivas:0, cuadrillasIdle:0};
+    map[z].ordenes++;
+    map[z].clientes += (o.clientes||0);
+  });
+  (crews||[]).forEach(function(c){
+    const z = c.zona || 'Sin zona';
+    if(!map[z]) map[z] = {zona:z, ordenes:0, clientes:0, cuadrillasTotal:0, cuadrillasActivas:0, cuadrillasIdle:0};
+    map[z].cuadrillasTotal++;
+    if(c.status === 'sin_actividad') map[z].cuadrillasIdle++;
+    else map[z].cuadrillasActivas++;
+  });
+  const rows = Object.values(map);
+  rows.forEach(function(r){
+    r.ratio = r.cuadrillasTotal>0 ? (r.ordenes / r.cuadrillasTotal) : (r.ordenes>0 ? Infinity : 0);
+  });
+  rows.sort(function(a,b){ return b.ratio - a.ratio; });
+  return rows;
+}
+
+let propCapLoaded = false;
+function renderPropCap(){
+  if(propCapLoaded) return;
+  propCapLoaded = true;
+  const totalOrders = state.orders.length;
+  const bloqueRows = aggBloqueHorario(state.orders);
+  const bloqueHtml = `
+    <table class="prop-table prop-table-num">
+      <tr><th>Bloque horario</th><th>DOM</th><th>Red</th><th>Total</th><th>% del total</th><th>Clientes</th></tr>
+      ${bloqueRows.map(function(r){ return `<tr><td style="text-align:left">${r.bloque}</td><td>${r.dom}</td><td>${r.red}</td><td>${r.total}</td><td>${(100*r.total/totalOrders).toFixed(1)}%</td><td>${r.clientes}</td></tr>`; }).join('')}
+    </table>
+  `;
+  const elHorario = document.getElementById('prop-cap-horario');
+  if(elHorario) elHorario.innerHTML = bloqueHtml;
+
+  const gapRows = aggCrewGapByZona(state.orders, state.crews||[]);
+  const gapHtml = `
+    <table class="prop-table prop-table-num">
+      <tr><th>Zona</th><th>Órdenes (backlog)</th><th>Clientes</th><th>Cuadrillas totales</th><th>Activas</th><th>Sin actividad</th><th>Órdenes / cuadrilla</th></tr>
+      ${gapRows.map(function(r){
+        const ratioTxt = r.cuadrillasTotal>0 ? r.ratio.toFixed(1) : (r.ordenes>0 ? 'sin cuadrillas' : '—');
+        return `<tr><td style="text-align:left">${zonaLabel(r.zona)}</td><td>${r.ordenes}</td><td>${r.clientes}</td><td>${r.cuadrillasTotal}</td><td>${r.cuadrillasActivas}</td><td>${r.cuadrillasIdle}</td><td>${ratioTxt}</td></tr>`;
+      }).join('')}
+    </table>
+  `;
+  const elGap = document.getElementById('prop-cap-gap');
+  if(elGap) elGap.innerHTML = gapHtml;
+}
+window.renderPropCap = renderPropCap;
 
 
 function logCardHtml(o){
@@ -2887,18 +2970,32 @@ table.prop-table tr:hover td{background:rgba(210,35,42,.04);}
   function initPropSubtabs(){
     var btnDom = document.getElementById('subtab-dom');
     var btnRed = document.getElementById('subtab-red');
+    var btnCap = document.getElementById('subtab-cap');
     var panelDom = document.getElementById('prop-panel-dom');
     var panelRed = document.getElementById('prop-panel-red');
+    var panelCap = document.getElementById('prop-panel-cap');
     if(!btnDom || !btnRed || !panelDom || !panelRed) return;
+    function activate(btn){
+      [btnDom, btnRed, btnCap].forEach(function(b){ if(b) b.classList.remove('active'); });
+      if(btn) btn.classList.add('active');
+    }
+    function show(panel){
+      [panelDom, panelRed, panelCap].forEach(function(p){ if(p) p.style.display='none'; });
+      if(panel) panel.style.display='';
+    }
     btnDom.addEventListener('click', function(){
-      panelDom.style.display=''; panelRed.style.display='none';
-      btnDom.classList.add('active'); btnRed.classList.remove('active');
+      show(panelDom); activate(btnDom);
     });
     btnRed.addEventListener('click', function(){
-      panelRed.style.display=''; panelDom.style.display='none';
-      btnRed.classList.add('active'); btnDom.classList.remove('active');
+      show(panelRed); activate(btnRed);
       if(typeof renderPropRed === 'function') renderPropRed();
     });
+    if(btnCap && panelCap){
+      btnCap.addEventListener('click', function(){
+        show(panelCap); activate(btnCap);
+        if(typeof renderPropCap === 'function') renderPropCap();
+      });
+    }
   }
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', function(){ initViewTabs(); initPropSubtabs(); });
