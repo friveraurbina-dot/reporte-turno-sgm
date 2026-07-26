@@ -1170,6 +1170,69 @@ function scoreRows(rows, esperaKey){
 
 let propDomLoaded = false, propRedLoaded = false;
 
+const DOM_FLOTA_TOTAL = {
+  'Zona_Aconcagua': 7,
+  'Zona_Costa': 8,
+  'Zona_Marga_Marga': 7,
+  'Zona_Quillota': 5,
+  'Zona_San_Antonio': 1,
+  'Zona_Valparaiso': 5
+};
+const DOM_FLOTA_TOTAL_FECHA = '26.07.2026';
+
+function aggDomFlotaPorZona(orders){
+  const map = {};
+  Object.keys(DOM_FLOTA_TOTAL).forEach(function(z){
+    map[z] = {zona:z, flotaTotal: DOM_FLOTA_TOTAL[z], ordenes:0, clientes:0, activosAhora:0};
+  });
+  const crewSeen = {};
+  orders.forEach(function(o){
+    const z = o.zona;
+    if(!z || !map[z]) return;
+    map[z].ordenes++; map[z].clientes += (o.clientes||0);
+    if(o.crew && !crewSeen[o.crew]){ crewSeen[o.crew] = true; map[z].activosAhora++; }
+  });
+  const rows = Object.values(map);
+  rows.forEach(function(r){
+    r.libres = Math.max(0, r.flotaTotal - r.activosAhora);
+    r.clientesPorMovilDotacion = r.flotaTotal>0 ? (r.clientes/r.flotaTotal) : Infinity;
+  });
+  rows.sort(function(a,b){ return b.clientesPorMovilDotacion - a.clientesPorMovilDotacion; });
+  return rows;
+}
+
+function buildFlotaZonaHtml(zonaRows){
+  const zonaLabel = function(z){ return (z||'').replace('Zona_','').replace(/_/g,' '); };
+  const donantes = zonaRows.filter(function(r){ return r.libres>0; }).sort(function(a,b){ return b.libres - a.libres; });
+  const receptores = zonaRows.filter(function(r){ return r.libres===0 && r.ordenes>0; }).sort(function(a,b){ return b.clientesPorMovilDotacion - a.clientesPorMovilDotacion; });
+  const nSug = Math.min(donantes.length, receptores.length, 4);
+  let sugerencias = '';
+  if(nSug>0){
+    const items = [];
+    for(let i=0;i<nSug;i++){
+      const orig = donantes[i], dest = receptores[i];
+      items.push(`<li>Zona <b>${zonaLabel(orig.zona)}</b> tiene ${orig.flotaTotal} móviles en dotación y solo ${orig.activosAhora} con orden activa ahora (${orig.libres} libres) — evaluar reforzar zona <b>${zonaLabel(dest.zona)}</b>, que opera con su dotación completa (${dest.flotaTotal} móviles) y ${dest.clientesPorMovilDotacion.toFixed(1)} clientes/móvil.</li>`);
+    }
+    sugerencias = `<ol class="prop-list">${items.join('')}</ol>`;
+  } else {
+    sugerencias = '<p class="prop-note">Con la dotación total actual no se identifican zonas con móviles libres para reforzar otras zonas.</p>';
+  }
+  const totalFlota = Object.values(DOM_FLOTA_TOTAL).reduce(function(a,b){return a+b;},0);
+  return `
+    <h3>Dotación real de móviles Domiciliario por zona operativa</h3>
+    <p class="prop-note">Fuente: planilla de dotación (Segmento_DOM ${DOM_FLOTA_TOTAL_FECHA}), ${totalFlota} móviles totales. <b>Activos ahora</b> = móviles con una orden Domiciliario abierta en este snapshot; <b>libres</b> = dotación total − activos ahora (estimado, no confirma disponibilidad real del móvil en este instante).</p>
+    <table class="prop-table prop-table-num">
+      <tr><th>Zona operativa</th><th>Dotación total</th><th>Activos ahora</th><th>Libres (estimado)</th><th>Órdenes</th><th>Clientes (backlog)</th><th>Clientes / móvil dotación</th></tr>
+      ${zonaRows.map(function(r){
+        return `<tr><td style="text-align:left">${zonaLabel(r.zona)}</td><td>${r.flotaTotal}</td><td>${r.activosAhora}</td><td>${r.libres}</td><td>${r.ordenes}</td><td>${r.clientes}</td><td>${r.clientesPorMovilDotacion===Infinity?'—':r.clientesPorMovilDotacion.toFixed(1)}</td></tr>`;
+      }).join('')}
+    </table>
+    <h3>Propuesta de redistribución por dotación real</h3>
+    ${sugerencias}
+    <p class="prop-note">Esta propuesta usa la dotación total real por zona (no solo los móviles con orden activa en este momento), por lo que es más confiable que la comparación por comuna de más arriba para decidir traslados entre zonas operativas.</p>
+  `;
+}
+
 function countDomMovilesPorComuna(){
   const orderByCrew = {};
   state.orders.forEach(function(o){ if(o.crew) orderByCrew[o.crew] = o; });
@@ -1263,6 +1326,7 @@ async function renderPropDom(){
     </table>
     <p class="prop-note">${rows.length} comunas con órdenes Domiciliario abiertas en este snapshot (top ${top.length} mostrado).</p>
     ${buildRedistribHtml(rows, countDomMovilesPorComuna())}
+    ${buildFlotaZonaHtml(aggDomFlotaPorZona(orders))}
   `;
 }
 
