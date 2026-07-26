@@ -452,65 +452,76 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 
   <div class="prop-view" id="prop-view" style="display:none;">
     <div class="prop-wrap">
-      <div class="prop-badge">PROPUESTA &mdash; V2, pendiente de aprobación</div>
-      <h2>Pestaña &quot;Análisis y Priorización&quot;</h2>
-      <p class="prop-lead">Vista nueva que ordena las órdenes abiertas (Red/MT y Domiciliario) de mayor a menor prioridad. Esta versión agrega dos cosas que faltaban: <b>sectores geográficos específicos</b> calculados directo desde las coordenadas (no solo comuna/zona), y <b>tiempos de traslado estimados</b> entre puntos, para que el top 10/20 refleje no solo qué está más urgente sino qué conviene resolver junto.</p>
+      <div class="prop-badge">PROPUESTA &mdash; V3, pendiente de aprobación</div>
+      <h2>Análisis y Priorización</h2>
+      <p class="prop-lead">Dos análisis <b>completamente independientes</b>, uno por flota: <b>Domiciliario</b> (móviles de Empalmes) y <b>Red</b> (cuadrillas de redes pesadas). No comparten factores ni tabla &mdash; cada uno tiene su propia lógica porque atienden trabajos distintos con equipos distintos. Ambas flotas despachan desde la misma Base de Control (Curauma), así que sí comparten ese punto de referencia para calcular traslado.</p>
+      <p class="prop-note">Sobre el &quot;sector&quot;: los 3 archivos de origen no traen una columna de sector, y no fue posible obtenerlo por geocodificación inversa (el servicio de mapas externo está bloqueado en este entorno). Por ahora se usa <b>comuna</b> (Domiciliario) y <b>zona operativa</b> (Red) &mdash; los datos geográficos reales que sí trae el sistema. Si más adelante se dispone de un archivo con los límites de sector oficiales de Chilquinta (shapefile/GeoJSON/KML), se puede cruzar cada coordenada contra esos límites para un sector exacto.</p>
 
-      <h3>1. Dos niveles de priorización</h3>
-      <p class="prop-note">Se proponen <b>dos rankings complementarios</b>: uno por <b>orden individual</b> (la orden más urgente) y uno por <b>sector geográfico</b> (el grupo de órdenes cercanas entre sí que conviene despachar en una sola salida). El segundo es el que responde directamente a &quot;top 10 / top 20 de sectores&quot;.</p>
+      <div class="prop-subtabs">
+        <button class="prop-subtab active" id="subtab-dom" type="button">🏠 Domiciliario &mdash; Empalmes</button>
+        <button class="prop-subtab" id="subtab-red" type="button">⚡ Red &mdash; Cuadrillas pesadas</button>
+      </div>
 
-      <h3>2. Domiciliario &mdash; sectores por coordenadas</h3>
-      <p class="prop-note">Se agrupan las 1083 órdenes DOM abiertas en celdas de <b>~900 x 900 metros</b> usando su latitud/longitud real (no comuna, que es demasiado grande, ni una sola coordenada). Con los datos de hoy esto arroja <b>464 micro-sectores</b>; 147 de ellos tienen 3 o más órdenes agrupables en la misma salida.</p>
-      <p class="prop-note">Top 15 micro-sectores DOM, ordenados por un puntaje que combina <b>antigüedad promedio del sector (35%)</b>, <b>cantidad de órdenes agrupables (30%)</b> y <b>eficiencia de traslado (35%)</b> &mdash; qué tan cerca está el sector de la Base y qué tan compacto es (poco recorrido interno):</p>
-      <table class="prop-table prop-table-num">
-        <tr><th>#</th><th>Comuna</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Dist. Base</th><th>Traslado desde Base</th><th>Puntaje</th></tr>
-        <tr><td>1</td><td>Valparaíso Poniente</td><td>9</td><td>9</td><td>130 h</td><td>11.0 km</td><td>23 min</td><td>94.0</td></tr>
-        <tr><td>2</td><td>Viña del Mar</td><td>9</td><td>9</td><td>144 h</td><td>14.4 km</td><td>30 min</td><td>92.6</td></tr>
-        <tr><td>3</td><td>Valparaíso Poniente</td><td>3</td><td>3</td><td>167 h</td><td>8.1 km</td><td>17 min</td><td>91.9</td></tr>
-        <tr><td>4</td><td>Valparaíso Poniente</td><td>7</td><td>7</td><td>123 h</td><td>11.7 km</td><td>24 min</td><td>91.3</td></tr>
-        <tr><td>5</td><td>Viña del Mar</td><td>10</td><td>10</td><td>130 h</td><td>16.1 km</td><td>33 min</td><td>90.2</td></tr>
-        <tr><td>6</td><td>Valparaíso Poniente</td><td>7</td><td>7</td><td>117 h</td><td>12.7 km</td><td>26 min</td><td>89.5</td></tr>
-        <tr><td>7</td><td>Viña del Mar</td><td>4</td><td>4</td><td>155 h</td><td>14.4 km</td><td>29 min</td><td>89.4</td></tr>
-        <tr><td>8</td><td>Valparaíso Poniente</td><td>6</td><td>6</td><td>105 h</td><td>9.3 km</td><td>19 min</td><td>89.4</td></tr>
-        <tr><td>9</td><td>Valparaíso Poniente</td><td>3</td><td>3</td><td>180 h</td><td>12.3 km</td><td>25 min</td><td>89.2</td></tr>
-        <tr><td>10</td><td>Quilpué</td><td>4</td><td>4</td><td>137 h</td><td>13.2 km</td><td>27 min</td><td>88.5</td></tr>
-        <tr><td>11</td><td>Viña del Mar</td><td>7</td><td>7</td><td>128 h</td><td>17.9 km</td><td>37 min</td><td>88.0</td></tr>
-        <tr><td>12</td><td>Valparaíso Poniente</td><td>7</td><td>7</td><td>99 h</td><td>10.4 km</td><td>21 min</td><td>88.0</td></tr>
-        <tr><td>13</td><td>Viña del Mar</td><td>10</td><td>10</td><td>111 h</td><td>15.3 km</td><td>31 min</td><td>87.9</td></tr>
-        <tr><td>14</td><td>Quilpué</td><td>5</td><td>5</td><td>103 h</td><td>11.1 km</td><td>23 min</td><td>87.3</td></tr>
-        <tr><td>15</td><td>Valparaíso Poniente</td><td>4</td><td>4</td><td>102 h</td><td>9.2 km</td><td>19 min</td><td>86.8</td></tr>
-      </table>
-      <p class="prop-note">Lectura: el sector #1 no es la orden individual más antigua, pero es el que más rinde por salida &mdash; 9 órdenes viejas, todas a 23 minutos de la Base, dentro de un radio de ~260 m entre sí.</p>
+      <div id="prop-panel-dom">
+        <h3>Objetivo</h3>
+        <p class="prop-note">Priorizar qué comunas atender primero con los móviles de Empalmes, combinando antigüedad de las órdenes, cantidad de clientes y qué tan rápido/eficiente es llegar y recorrerlas.</p>
+        <h3>Fórmula (nivel comuna)</h3>
+        <table class="prop-table">
+          <tr><th>Factor</th><th>Peso</th><th>Cómo se calcula</th></tr>
+          <tr><td>Urgencia</td><td>40%</td><td>Antigüedad promedio de las órdenes abiertas en la comuna</td></tr>
+          <tr><td>Impacto</td><td>35%</td><td>Cantidad de órdenes (= clientes) abiertas en la comuna</td></tr>
+          <tr><td>Eficiencia de traslado</td><td>25%</td><td>Cercanía de la comuna a la Base + qué tan dispersas están sus órdenes entre sí</td></tr>
+        </table>
+        <p class="prop-note">Top 15 comunas con datos de hoy (937 órdenes DOM abiertas, snapshot 26-07-2026):</p>
+        <table class="prop-table prop-table-num">
+          <tr><th>#</th><th>Comuna</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Dist. Base</th><th>Traslado desde Base</th><th>Puntaje</th></tr>
+          <tr><td>1</td><td>Valparaíso Poniente</td><td>147</td><td>147</td><td>99 h</td><td>10.5 km</td><td>22 min</td><td>96.0</td></tr>
+          <tr><td>2</td><td>Viña del Mar</td><td>125</td><td>125</td><td>104 h</td><td>14.1 km</td><td>29 min</td><td>94.2</td></tr>
+          <tr><td>3</td><td>Quilpué</td><td>93</td><td>93</td><td>83 h</td><td>13.6 km</td><td>28 min</td><td>86.2</td></tr>
+          <tr><td>4</td><td>Villa Alemana</td><td>72</td><td>72</td><td>91 h</td><td>18.5 km</td><td>38 min</td><td>84.6</td></tr>
+          <tr><td>5</td><td>Concón</td><td>52</td><td>52</td><td>94 h</td><td>21.2 km</td><td>44 min</td><td>82.5</td></tr>
+          <tr><td>6</td><td>Quillota</td><td>80</td><td>80</td><td>84 h</td><td>36.5 km</td><td>75 min</td><td>80.6</td></tr>
+          <tr><td>7</td><td>La Cruz</td><td>28</td><td>28</td><td>108 h</td><td>44.5 km</td><td>91 min</td><td>72.9</td></tr>
+          <tr><td>8</td><td>La Calera</td><td>56</td><td>56</td><td>80 h</td><td>49.3 km</td><td>101 min</td><td>70.0</td></tr>
+          <tr><td>9</td><td>Quintero</td><td>41</td><td>41</td><td>50 h</td><td>35.1 km</td><td>72 min</td><td>62.3</td></tr>
+          <tr><td>10</td><td>Valparaíso Oriente</td><td>30</td><td>30</td><td>41 h</td><td>7.5 km</td><td>15 min</td><td>60.2</td></tr>
+          <tr><td>11</td><td>Nogales</td><td>31</td><td>31</td><td>68 h</td><td>53.9 km</td><td>111 min</td><td>60.0</td></tr>
+          <tr><td>12</td><td>Hijuelas</td><td>29</td><td>29</td><td>66 h</td><td>51.8 km</td><td>106 min</td><td>53.8</td></tr>
+          <tr><td>13</td><td>Limache</td><td>30</td><td>30</td><td>32 h</td><td>29.0 km</td><td>60 min</td><td>51.3</td></tr>
+          <tr><td>14</td><td>Puchuncaví</td><td>18</td><td>18</td><td>53 h</td><td>43.3 km</td><td>89 min</td><td>51.2</td></tr>
+          <tr><td>15</td><td>Olmué</td><td>6</td><td>6</td><td>49 h</td><td>40.1 km</td><td>82 min</td><td>42.7</td></tr>
+        </table>
+        <p class="prop-note">27 comunas en total tienen órdenes DOM abiertas hoy. Valparaíso Poniente encabeza por volumen y cercanía a la Base; comunas lejanas como San Esteban o Los Andes quedan al final aunque tengan órdenes viejas, porque son pocas y caras de alcanzar en proporción.</p>
+      </div>
 
-      <h3>3. Red (MT) &mdash; prioridad por zona con ruta y tiempo de traslado</h3>
-      <p class="prop-note">Con solo 13 órdenes MT abiertas, agrupar por coordenada fina no aporta &mdash; se usa la <b>zona operativa</b> (ya existente en el tablero) y, dentro de cada zona, se calcula una <b>ruta sugerida</b> (vecino más cercano desde la Base) con su tiempo de traslado estimado:</p>
-      <table class="prop-table prop-table-num">
-        <tr><th>Zona</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Espera máx.</th><th>Km de ruta</th><th>Min. de ruta</th></tr>
-        <tr><td style="text-align:left">Zona Quillota</td><td>9</td><td>401</td><td>61.6 h</td><td>222.9 h</td><td>122.2</td><td>251</td></tr>
-        <tr><td style="text-align:left">Zona Costa</td><td>2</td><td>96</td><td>6.2 h</td><td>8.5 h</td><td>39.4</td><td>81</td></tr>
-        <tr><td style="text-align:left">Zona Aconcagua</td><td>1</td><td>18</td><td>183.3 h</td><td>183.3 h</td><td>133.7</td><td>274</td></tr>
-        <tr><td style="text-align:left">Zona Litoral</td><td>1</td><td>2</td><td>102.6 h</td><td>102.6 h</td><td>13.0</td><td>27</td></tr>
-      </table>
-      <p class="prop-note"><b>Hallazgo concreto:</b> resolver las 13 órdenes MT en una sola ruta (sin agrupar por zona) implica ~283 km y <b>~581 minutos</b> (9.7 h) de solo traslado. Priorizando <b>Zona Quillota</b> primero &mdash; 9 de las 13 órdenes y 401 de los ~517 clientes afectados, en una ruta de 251 min &mdash; se resuelve el 77% del impacto en menos de la mitad del tiempo de traslado total. Zona Aconcagua (1 orden, 18 clientes) es la más cara de alcanzar en proporción a su impacto: 274 min de traslado por una sola orden.</p>
+      <div id="prop-panel-red" style="display:none;">
+        <h3>Objetivo</h3>
+        <p class="prop-note">Priorizar qué zona atender primero con las cuadrillas de redes pesadas, agrupando por zona operativa (no por comuna) porque una falla de red suele cubrir varias comunas a la vez.</p>
+        <h3>Fórmula (nivel zona)</h3>
+        <table class="prop-table">
+          <tr><th>Factor</th><th>Peso</th><th>Cómo se calcula</th></tr>
+          <tr><td>Urgencia</td><td>40%</td><td>Antigüedad máxima de las órdenes abiertas en la zona</td></tr>
+          <tr><td>Impacto</td><td>35%</td><td>Total de clientes afectados en la zona</td></tr>
+          <tr><td>Eficiencia de traslado</td><td>25%</td><td>Duración de la ruta interna (vecino más cercano) desde la Base, visitando todas las órdenes de la zona</td></tr>
+        </table>
+        <p class="prop-note">Zonas con órdenes Red (MT) abiertas hoy, con ruta sugerida (vecino más cercano) desde la Base:</p>
+        <table class="prop-table prop-table-num">
+          <tr><th>Zona</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Espera máx.</th><th>Km de ruta</th><th>Min. de ruta</th></tr>
+          <tr><td style="text-align:left">Zona Quillota</td><td>9</td><td>401</td><td>61.6 h</td><td>222.9 h</td><td>122.2</td><td>251</td></tr>
+          <tr><td style="text-align:left">Zona Costa</td><td>2</td><td>96</td><td>6.2 h</td><td>8.5 h</td><td>39.4</td><td>81</td></tr>
+          <tr><td style="text-align:left">Zona Aconcagua</td><td>1</td><td>18</td><td>183.3 h</td><td>183.3 h</td><td>133.7</td><td>274</td></tr>
+          <tr><td style="text-align:left">Zona Litoral</td><td>1</td><td>2</td><td>102.6 h</td><td>102.6 h</td><td>13.0</td><td>27</td></tr>
+        </table>
+        <p class="prop-note"><b>Hallazgo:</b> resolver las 13 órdenes MT abiertas en una sola ruta (sin agrupar por zona) implica ~283 km y ~581 min de solo traslado. Priorizando Zona Quillota primero &mdash; 9 de 13 órdenes y 401 de ~517 clientes afectados, en 251 min de ruta &mdash; se resuelve el 77% del impacto en menos de la mitad del tiempo de traslado total.</p>
+      </div>
 
-      <h3>4. Fórmula de puntaje actualizada (nivel sector)</h3>
-      <table class="prop-table">
-        <tr><th>Factor</th><th>Peso DOM</th><th>Peso Red</th><th>Cómo se calcula</th></tr>
-        <tr><td>Urgencia</td><td>35%</td><td>40%</td><td>Antigüedad promedio (DOM) o máxima (Red) de las órdenes del sector/zona</td></tr>
-        <tr><td>Impacto</td><td>30%</td><td>35%</td><td>Órdenes agrupables (DOM) o clientes afectados (Red) del sector/zona</td></tr>
-        <tr><td>Eficiencia de traslado</td><td>35%</td><td>25%</td><td>Cercanía a la Base + compacidad del sector (DOM), o duración de la ruta interna (Red)</td></tr>
-      </table>
-      <p class="prop-note">El puntaje por <b>orden individual</b> (Objetivo original: Red 45/55, Domiciliario 75/25 espera/clientes) se mantiene disponible como vista de detalle al entrar a un sector.</p>
+      <h3>Nota sobre los tiempos de traslado</h3>
+      <p class="prop-note">Los tiempos de traslado son una <b>estimación</b>: distancia en línea recta entre coordenadas &times; 1.3 (factor de sinuosidad de ruta) &divide; 38 km/h de velocidad promedio. No usan tráfico real ni la red vial. Si se necesita el tiempo real de cuadrilla en terreno, se puede conectar un servicio de rutas (Google Maps o OSRM) &mdash; ver pregunta 2 abajo.</p>
 
-      <h3>5. Nota sobre los tiempos de traslado</h3>
-      <p class="prop-note">Los tiempos de traslado son una <b>estimación</b>: distancia en línea recta entre coordenadas &times; 1.3 (factor de sinuosidad de ruta) &divide; 38 km/h de velocidad promedio. No usan tráfico real ni la red vial. Son suficientes para ordenar prioridades, pero si se necesita el tiempo real de cuadrilla en terreno, se puede conectar un servicio de rutas (Google Maps o OSRM) que entregue minutos exactos por calle &mdash; esto es una decisión aparte (ver más abajo).</p>
-
-      <h3>6. Decisiones que necesito de ti antes de implementar</h3>
+      <h3>Decisiones que necesito de ti antes de implementar</h3>
       <ol class="prop-list">
-        <li>¿El tamaño de celda para sectores DOM (~900 m) te hace sentido, o prefieres sectores más grandes/pequeños?</li>
-        <li>¿Los pesos propuestos a nivel sector (Urgencia/Impacto/Eficiencia: DOM 35/30/35, Red 40/35/25) están bien, o los ajustamos?</li>
+        <li>¿Los pesos propuestos (Urgencia 40% / Impacto 35% / Eficiencia 25%, iguales para ambas flotas) están bien, o quieres pesos distintos para Domiciliario vs Red?</li>
         <li>¿Sirve la estimación de traslado por distancia recta (línea recta &times;1.3 / 38 km/h), o prefieres conectar un servicio de rutas real para tiempos exactos?</li>
-        <li>¿&quot;Sector&quot; es un campo que ya existe en el sistema de origen y no estoy usando, o coordenadas + comuna/zona es suficiente?</li>
         <li>¿El conmutador Mapa/Análisis queda como pestaña visible siempre, o como botón que abre la tabla en una ventana modal?</li>
       </ol>
       <div class="prop-cta">Responde estas preguntas en el chat para pasar de propuesta a implementación.</div>
@@ -2719,6 +2730,9 @@ table.prop-table.prop-table-num td:not(:nth-child(2)):not(:nth-child(3)){text-al
 table.prop-table tr:hover td{background:rgba(210,35,42,.04);}
 .prop-list{font-size:13px; line-height:1.8; color:var(--text); padding-left:20px; margin:8px 0;}
 .prop-cta{margin-top:22px; background:linear-gradient(135deg,#12A6BD,var(--cyan)); color:#fff; font-weight:700; font-size:13px; padding:13px 16px; border-radius:9px; text-align:center;}
+.prop-subtabs{display:flex; gap:8px; margin:18px 0 22px;}
+.prop-subtab{flex:1; background:var(--panel2); border:1px solid var(--border); color:var(--muted); font-family:var(--body); font-size:13px; font-weight:700; padding:11px 14px; border-radius:9px; cursor:pointer;}
+.prop-subtab.active{background:var(--red); color:#fff; border-color:var(--red-dark);}
 </style>
 <script>
 (function(){
@@ -2747,10 +2761,25 @@ table.prop-table tr:hover td{background:rgba(210,35,42,.04);}
     btnMapa.addEventListener('click', showMapa);
     btnAn.addEventListener('click', showAnalisis);
   }
+  function initPropSubtabs(){
+    var btnDom = document.getElementById('subtab-dom');
+    var btnRed = document.getElementById('subtab-red');
+    var panelDom = document.getElementById('prop-panel-dom');
+    var panelRed = document.getElementById('prop-panel-red');
+    if(!btnDom || !btnRed || !panelDom || !panelRed) return;
+    btnDom.addEventListener('click', function(){
+      panelDom.style.display=''; panelRed.style.display='none';
+      btnDom.classList.add('active'); btnRed.classList.remove('active');
+    });
+    btnRed.addEventListener('click', function(){
+      panelRed.style.display=''; panelDom.style.display='none';
+      btnRed.classList.add('active'); btnDom.classList.remove('active');
+    });
+  }
   if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', initViewTabs);
+    document.addEventListener('DOMContentLoaded', function(){ initViewTabs(); initPropSubtabs(); });
   } else {
-    initViewTabs();
+    initViewTabs(); initPropSubtabs();
   }
 })();
 </script>
