@@ -365,6 +365,11 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
     </div>
   </div>
 
+  <div class="view-tabs">
+    <button class="view-tab active" id="view-tab-mapa" type="button">🗺️ Mapa</button>
+    <button class="view-tab" id="view-tab-analisis" type="button">📊 Propuesta: Análisis y Priorización</button>
+  </div>
+
   <div class="filter-strip" id="filter-strip">
     <div class="filter-group">
       <span class="filter-label">Antigüedad (selección múltiple):</span>
@@ -442,6 +447,74 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
       <div class="tabcontent" id="tab-nueva" style="display:none;"></div>
       <div class="tabcontent" id="tab-unidades"></div>
       <div class="tabcontent" id="tab-propuesta" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div class="prop-view" id="prop-view" style="display:none;">
+    <div class="prop-wrap">
+      <div class="prop-badge">PROPUESTA &mdash; pendiente de aprobación</div>
+      <h2>Pestaña &quot;Análisis y Priorización&quot;</h2>
+      <p class="prop-lead">Vista nueva que ordena automáticamente las órdenes abiertas (Red/MT y Domiciliario) de mayor a menor prioridad, combinando tiempo de espera, cantidad de clientes afectados y ubicación, para apoyar la decisión de a qué atender primero.</p>
+
+      <h3>1. Modelo de priorización</h3>
+      <table class="prop-table">
+        <tr><th>Factor</th><th>Qué mide</th><th>Por qué</th></tr>
+        <tr><td>Tiempo de espera</td><td>Antigüedad de la orden (horas)</td><td>Es el SLA principal; entre más vieja, más urgente</td></tr>
+        <tr><td>Clientes afectados</td><td>Campo <code>clientes</code> de la orden</td><td>En Red, una sola orden puede afectar a decenas o cientos de clientes &mdash; debe pesar fuerte</td></tr>
+        <tr><td>Comuna / Zona</td><td>Agrupación geográfica</td><td>No pondera el puntaje; se muestra como columna informativa para agrupar rutas</td></tr>
+        <tr><td>Emergencia / Electrodependiente</td><td>Flags existentes en los datos</td><td>Si están activos, la orden salta automáticamente al tope (puntaje 100)</td></tr>
+      </table>
+      <p class="prop-note">Cada orden recibe un puntaje 0&ndash;100 por <b>percentil dentro de su propio grupo</b> (Red o Domiciliario), no por umbral fijo en horas &mdash; así el modelo se autoajusta al backlog del momento.</p>
+
+      <h3>2. Pesos por defecto propuestos</h3>
+      <table class="prop-table">
+        <tr><th>Tipo</th><th>Peso espera</th><th>Peso clientes</th><th>Razón</th></tr>
+        <tr><td><b>Red (MT)</b></td><td>45%</td><td>55%</td><td>El impacto (clientes afectados) suele ser tan o más decisivo que la antigüedad</td></tr>
+        <tr><td><b>Domiciliario (DOM)</b></td><td>75%</td><td>25%</td><td>Casi siempre es 1 orden = 1 cliente, así que la antigüedad manda</td></tr>
+      </table>
+      <p class="prop-note"><b>Sobre &quot;sector&quot;:</b> los datos actuales traen comuna y zona operativa, pero no un campo de sector más fino. Si existe un campo de sector en el sistema de origen que no se está usando, indicarlo para incorporarlo.</p>
+
+      <h3>3. Ejemplo con datos reales de hoy (snapshot 25-07-2026)</h3>
+      <p class="prop-note">Red (MT) &mdash; las 13 órdenes abiertas, ordenadas por prioridad:</p>
+      <table class="prop-table prop-table-num">
+        <tr><th>#</th><th>Orden</th><th>Comuna</th><th>Clientes</th><th>Espera</th><th>Puntaje</th><th>Abiertas en la comuna</th></tr>
+        <tr><td>1</td><td>1660483-1</td><td>Quillota</td><td>27</td><td>55:59</td><td>71.2</td><td>2</td></tr>
+        <tr><td>2</td><td>1665491-1</td><td>Limache</td><td>112</td><td>11:17</td><td>69.2</td><td>1</td></tr>
+        <tr><td>3</td><td>1664672-1</td><td>Nogales</td><td>26</td><td>31:30</td><td>58.3</td><td>3</td></tr>
+        <tr><td>4</td><td>1665616-1</td><td>Quintero</td><td>27</td><td>08:30</td><td>56.2</td><td>2</td></tr>
+        <tr><td>5</td><td>1644679-1</td><td>Los Andes</td><td>18</td><td>183:19</td><td>55.8</td><td>1</td></tr>
+        <tr><td>6</td><td>1665917-1</td><td>Quillota</td><td>179</td><td>02:58</td><td>55.0</td><td>2</td></tr>
+        <tr><td>7</td><td>1665454-1</td><td>La Calera</td><td>23</td><td>16:10</td><td>50.0</td><td>1</td></tr>
+        <tr><td>8</td><td>1665887-1</td><td>Quintero</td><td>69</td><td>03:50</td><td>49.6</td><td>2</td></tr>
+        <tr><td>9</td><td>1638400-1</td><td>Nogales</td><td>1</td><td>201:38</td><td>45.8</td><td>3</td></tr>
+        <tr><td>10</td><td>1633422-1</td><td>Nogales</td><td>0</td><td>222:54</td><td>45.0</td><td>3</td></tr>
+      </table>
+      <p class="prop-note">Domiciliario (DOM) &mdash; top 5 de 1083 órdenes abiertas:</p>
+      <table class="prop-table prop-table-num">
+        <tr><th>#</th><th>Orden</th><th>Comuna</th><th>Clientes</th><th>Espera</th><th>Puntaje</th><th>Abiertas en la comuna</th></tr>
+        <tr><td>1</td><td>1632343-1</td><td>Valparaíso Poniente</td><td>1</td><td>224:23</td><td>100.0</td><td>157</td></tr>
+        <tr><td>2</td><td>1632793-1</td><td>Valparaíso Poniente</td><td>1</td><td>223:50</td><td>99.9</td><td>157</td></tr>
+        <tr><td>3</td><td>1633850-1</td><td>Valparaíso Poniente</td><td>1</td><td>222:06</td><td>99.9</td><td>157</td></tr>
+        <tr><td>4</td><td>1633933-1</td><td>Valparaíso Poniente</td><td>1</td><td>221:55</td><td>99.8</td><td>157</td></tr>
+        <tr><td>5</td><td>1634681-1</td><td>Valparaíso Poniente</td><td>1</td><td>219:50</td><td>99.7</td><td>157</td></tr>
+      </table>
+      <p class="prop-note">En Domiciliario el orden resultante es, en la práctica, por antigüedad &mdash; el criterio esperado, ya que clientes casi no varía.</p>
+
+      <h3>4. Diseño de la sub-pestaña (por tipo)</h3>
+      <ul class="prop-list">
+        <li>Filtros: zona, comuna, rango de antigüedad (reutilizando los que ya existen en el tablero).</li>
+        <li>Columnas: Rank, Orden, Comuna, Zona, Clientes, Espera, Puntaje, Badges (⚠ Emergencia / ❤ Electrodependiente / 🔗 agrupable en comuna).</li>
+        <li>Click en una fila centra el mapa en esa orden.</li>
+        <li>Exportar a Excel, reutilizando el exportador ya existente.</li>
+      </ul>
+
+      <h3>5. Decisiones pendientes antes de implementar</h3>
+      <ol class="prop-list">
+        <li>¿Los pesos por defecto propuestos (Red 45/55, Domiciliario 75/25) hacen sentido, o prefieres otros?</li>
+        <li>¿&quot;Sector&quot; es un campo distinto que existe en el sistema de origen, o comuna/zona es suficiente?</li>
+        <li>¿El conmutador Mapa/Análisis debe quedar como pestaña visible siempre, o como botón que abre la tabla en una ventana modal?</li>
+      </ol>
+      <div class="prop-cta">Responde estas 3 preguntas en el chat para pasar de propuesta a implementación.</div>
     </div>
   </div>
 
@@ -2626,4 +2699,60 @@ html,body{height:100%;margin:0;padding:0;}
 #tower-root .est-tipo{display:flex;gap:5px;margin-bottom:8px;}
 #tower-root .est-tipo .stab{flex:1;background:var(--panel2);border:1px solid var(--border);color:var(--muted);font-size:9.5px;font-weight:700;padding:5px 4px;border-radius:6px;cursor:pointer;line-height:1.15;}
 #tower-root .est-tipo .stab.active{background:var(--blue);color:#fff;border-color:var(--blue);}
-</style></body></html>
+
+<style>
+.view-tabs{display:flex; gap:8px; padding:8px 22px 0; background:var(--panel2); }
+.view-tab{background:#fff; border:1px solid var(--border); color:var(--muted); font-family:var(--body); font-size:12px; font-weight:700; padding:8px 16px; border-radius:8px 8px 0 0; cursor:pointer; border-bottom:none; position:relative; top:1px;}
+.view-tab.active{background:var(--red); color:#fff; border-color:var(--red-dark);}
+#tower-root .prop-view{flex:1 1 auto; overflow-y:auto; background:#fff;}
+.prop-wrap{max-width:920px; margin:0 auto; padding:28px 26px 60px;}
+.prop-badge{display:inline-block; font-family:var(--mono); font-size:10px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--amber); background:rgba(242,167,59,.14); border:1px solid var(--amber); border-radius:20px; padding:4px 12px; margin-bottom:10px;}
+.prop-wrap h2{font-family:var(--display); font-size:22px; color:var(--red-dark); margin:0 0 10px;}
+.prop-wrap h3{font-family:var(--display); font-size:15px; color:var(--text); margin:26px 0 10px; padding-top:14px; border-top:1px solid var(--border);}
+.prop-lead{font-size:13.5px; color:var(--muted); line-height:1.6; margin-bottom:6px;}
+.prop-note{font-size:12px; color:var(--muted); line-height:1.6; background:var(--panel2); border:1px solid var(--border); border-radius:7px; padding:9px 12px; margin:8px 0;}
+.prop-note b{color:var(--text);}
+table.prop-table{width:100%; border-collapse:collapse; font-size:12px; margin:8px 0 4px;}
+table.prop-table th{background:var(--panel2); color:var(--muted); font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.03em; text-align:left; padding:7px 9px; border-bottom:2px solid var(--border);}
+table.prop-table td{padding:6px 9px; border-bottom:1px solid var(--border); color:var(--text);}
+table.prop-table.prop-table-num th:not(:nth-child(2)):not(:nth-child(3)),
+table.prop-table.prop-table-num td:not(:nth-child(2)):not(:nth-child(3)){text-align:right; font-family:var(--mono);}
+table.prop-table tr:hover td{background:rgba(210,35,42,.04);}
+.prop-list{font-size:13px; line-height:1.8; color:var(--text); padding-left:20px; margin:8px 0;}
+.prop-cta{margin-top:22px; background:linear-gradient(135deg,#12A6BD,var(--cyan)); color:#fff; font-weight:700; font-size:13px; padding:13px 16px; border-radius:9px; text-align:center;}
+</style>
+<script>
+(function(){
+  function initViewTabs(){
+    var btnMapa = document.getElementById('view-tab-mapa');
+    var btnAn = document.getElementById('view-tab-analisis');
+    var layout = document.querySelector('#tower-root .layout');
+    var filterStrip = document.getElementById('filter-strip');
+    var weatherStrip = document.getElementById('weather-strip');
+    var propView = document.getElementById('prop-view');
+    if(!btnMapa || !btnAn || !layout || !propView) return;
+    function showMapa(){
+      layout.style.display = '';
+      if(filterStrip) filterStrip.style.display = '';
+      if(weatherStrip) weatherStrip.style.display = '';
+      propView.style.display = 'none';
+      btnMapa.classList.add('active'); btnAn.classList.remove('active');
+    }
+    function showAnalisis(){
+      layout.style.display = 'none';
+      if(filterStrip) filterStrip.style.display = 'none';
+      if(weatherStrip) weatherStrip.style.display = 'none';
+      propView.style.display = 'block';
+      btnAn.classList.add('active'); btnMapa.classList.remove('active');
+    }
+    btnMapa.addEventListener('click', showMapa);
+    btnAn.addEventListener('click', showAnalisis);
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', initViewTabs);
+  } else {
+    initViewTabs();
+  }
+})();
+</script>
+</body></html>
