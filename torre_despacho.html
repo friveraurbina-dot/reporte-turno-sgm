@@ -1171,14 +1171,31 @@ function scoreRows(rows, esperaKey){
 let propDomLoaded = false, propRedLoaded = false;
 
 const DOM_FLOTA_TOTAL = {
-  'Zona_Aconcagua': 7,
-  'Zona_Costa': 8,
-  'Zona_Marga_Marga': 7,
-  'Zona_Quillota': 5,
-  'Zona_San_Antonio': 1,
-  'Zona_Valparaiso': 5
+  'Zona_Aconcagua': 8,
+  'Zona_Costa': 20,
+  'Zona_Marga_Marga': 12,
+  'Zona_Quillota': 20,
+  'Zona_San_Antonio': 3,
+  'Zona_Valparaiso': 20
 };
-const DOM_FLOTA_TOTAL_FECHA = '26.07.2026';
+const DOM_FLOTA_TOTAL_FECHA = '27.07.2026';
+
+const DOM_FLOTA_COMUNA_BASE = {
+  'Valparaíso': 20,
+  'Viña del Mar': 19,
+  'Quillota': 17,
+  'Villa Alemana': 6,
+  'Quilpué': 6,
+  'Los Andes': 4,
+  'San Antonio': 3,
+  'Limache': 2,
+  'Llay Llay': 2,
+  'San Felipe': 2,
+  'Quintero': 1,
+  'La Calera': 1
+};
+
+const DOM_ORDENES_PROMEDIO_MOVIL_DIA = 5.5;
 
 function aggDomFlotaPorZona(orders){
   const map = {};
@@ -1230,6 +1247,48 @@ function buildFlotaZonaHtml(zonaRows){
     <h3>Propuesta de redistribución por dotación real</h3>
     ${sugerencias}
     <p class="prop-note">Esta propuesta usa la dotación total real por zona (no solo los móviles con orden activa en este momento), por lo que es más confiable que la comparación por comuna de más arriba para decidir traslados entre zonas operativas.</p>
+  `;
+}
+
+function buildCapacidadResolucionHtml(zonaRows){
+  const zonaLabel = function(z){ return (z||'').replace('Zona_','').replace(/_/g,' '); };
+  const rows = zonaRows.map(function(r){
+    const capacidadDia = r.flotaTotal * DOM_ORDENES_PROMEDIO_MOVIL_DIA;
+    const dias = capacidadDia>0 ? (r.clientes / capacidadDia) : Infinity;
+    return Object.assign({}, r, {capacidadDia: capacidadDia, dias: dias});
+  }).sort(function(a,b){ return b.dias - a.dias; });
+
+  function estadoTag(dias){
+    if(dias===Infinity) return {icon:'🔴', label:'Sin dotación'};
+    if(dias > 2) return {icon:'🔴', label:'Crítico (>2 días)'};
+    if(dias > 1) return {icon:'🟠', label:'Ajustado (1-2 días)'};
+    return {icon:'🟢', label:'Manejable (<1 día)'};
+  }
+
+  const totalBacklog = zonaRows.reduce(function(a,r){return a+r.clientes;},0);
+  const totalFlota = Object.values(DOM_FLOTA_TOTAL).reduce(function(a,b){return a+b;},0);
+  const totalCapacidadDia = totalFlota * DOM_ORDENES_PROMEDIO_MOVIL_DIA;
+  const totalDias = totalCapacidadDia>0 ? (totalBacklog/totalCapacidadDia) : Infinity;
+
+  const comunaBaseRows = Object.entries(DOM_FLOTA_COMUNA_BASE).sort(function(a,b){ return b[1]-a[1]; });
+
+  return `
+    <h3>Capacidad de atención y tiempo estimado para resolver el backlog</h3>
+    <p class="prop-note">Supuesto de rendimiento: <b>${DOM_ORDENES_PROMEDIO_MOVIL_DIA} órdenes/móvil/día</b> (promedio 5-6 diarias). <b>Días estimados</b> = backlog actual de clientes ÷ (dotación total × rendimiento diario), asumiendo dedicación completa a resolver pendientes y sin considerar ingreso de nuevas órdenes durante ese período — es un piso, no un compromiso de plazo.</p>
+    <table class="prop-table prop-table-num">
+      <tr><th>Zona operativa</th><th>Dotación total</th><th>Capacidad diaria (órdenes)</th><th>Backlog actual (clientes)</th><th>Días estimados para resolver</th><th>Estado</th></tr>
+      ${rows.map(function(r){
+        const tag = estadoTag(r.dias);
+        return `<tr><td style="text-align:left">${zonaLabel(r.zona)}</td><td>${r.flotaTotal}</td><td>${r.capacidadDia.toFixed(0)}</td><td>${r.clientes}</td><td>${r.dias===Infinity?'—':r.dias.toFixed(1)}</td><td>${tag.icon} ${tag.label}</td></tr>`;
+      }).join('')}
+      <tr style="font-weight:600"><td style="text-align:left">Total región</td><td>${totalFlota}</td><td>${totalCapacidadDia.toFixed(0)}</td><td>${totalBacklog}</td><td>${totalDias===Infinity?'—':totalDias.toFixed(1)}</td><td></td></tr>
+    </table>
+    <h3>Dotación por comuna base (domicilio del móvil)</h3>
+    <p class="prop-note">Referencia adicional de la misma planilla: dónde está basado cada móvil (independiente de en qué comuna esté resolviendo órdenes hoy). Útil para decidir desde qué comuna conviene sumar refuerzos cuando una zona completa está en estado crítico.</p>
+    <table class="prop-table prop-table-num">
+      <tr><th>Comuna base</th><th>Móviles</th></tr>
+      ${comunaBaseRows.map(function(cr){ return `<tr><td style="text-align:left">${cr[0]}</td><td>${cr[1]}</td></tr>`; }).join('')}
+    </table>
   `;
 }
 
@@ -1327,6 +1386,7 @@ async function renderPropDom(){
     <p class="prop-note">${rows.length} comunas con órdenes Domiciliario abiertas en este snapshot (top ${top.length} mostrado).</p>
     ${buildRedistribHtml(rows, countDomMovilesPorComuna())}
     ${buildFlotaZonaHtml(aggDomFlotaPorZona(orders))}
+    ${buildCapacidadResolucionHtml(aggDomFlotaPorZona(orders))}
   `;
 }
 
