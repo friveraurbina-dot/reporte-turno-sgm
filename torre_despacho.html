@@ -443,7 +443,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
     </div>
     <div class="sidepanel">
       <div id="priority-matrix"></div>
-      <div class="tabcontent" id="tab-log" style="display:none;"></div>
+      <div class="tabcontent" id="tab-log"></div>
       <div class="tabcontent" id="tab-nueva" style="display:none;"></div>
       <div class="tabcontent" id="tab-unidades"></div>
       <div class="tabcontent" id="tab-propuesta" style="display:none;"></div>
@@ -1658,6 +1658,8 @@ function renderLog(){
   const rreeIds = rreeCrewIds();
   const rreeCount = visibleOrders().filter(o=>rreeIds.has(o.crew)).length;
   let html = `
+    <div class="section-label">⏱ Priorización por tiempo sin energía</div>
+    <div class="note" style="margin-bottom:8px;">Mientras más tiempo lleva una orden <b>sin energía</b>, mayor su prioridad de atención. Los clientes <b>electrodependientes</b> (♥) siempre encabezan la lista, sin importar su tiempo de espera.</div>
     <div class="tipo-filter">
       <button class="tipo-btn ${bitacoraTipoFilter==='ALL'?'active':''}" data-tipo="ALL">Todas (${totalCount})</button>
       <button class="tipo-btn ${bitacoraTipoFilter==='DOM'?'active':''}" data-tipo="DOM">🏠 Domiciliarias (${domCount})</button>
