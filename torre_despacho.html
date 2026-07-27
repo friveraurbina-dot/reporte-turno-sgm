@@ -640,7 +640,7 @@ function visibleCrews(){
   if(bitacoraTipoFilter==='RREE') list = list.filter(c=>c.tipoMovil==='RREE');
   return list;
 }
-function zonaLabel(z){ return z==='ALL' ? 'Todas las zonas' : z.replace('Zona_','').replace(/_/g,' '); }
+function zonaLabel(z){ if(z==='ALL') return 'Todas las zonas'; if(!z) return 'Sin zona'; return z.replace('Zona_','').replace(/_/g,' '); }
 function populateZonaSelect(){
   const zonas = Array.from(new Set(state.orders.map(o=>o.zona))).sort();
   const sel = document.getElementById('zona-select');
