@@ -1098,7 +1098,7 @@ function fmtHorasEdad(hoursFloat){
 }
 
 function domZonasCriticas24h(){
-  const orders = (state.orders||[]).filter(function(o){ return o.tipo==='DOM'; });
+  const orders = (state.orders||[]).filter(function(o){ return o.tipo==='DOM' && o.priority!==4; });
   const map = {};
   orders.forEach(function(o){
     const h = esperaMinutes(o.espera)/60;
@@ -1112,7 +1112,7 @@ function domZonasCriticas24h(){
 }
 
 function domTop10PorZona(){
-  const orders = (state.orders||[]).filter(function(o){ return o.tipo==='DOM'; });
+  const orders = (state.orders||[]).filter(function(o){ return o.tipo==='DOM' && o.priority!==4; });
   const byZona = {};
   orders.forEach(function(o){
     const z = o.zona || 'Sin zona';
@@ -2203,7 +2203,8 @@ function renderMatrix(){
     ${buildDomCriticas24hHtml()}`;
 
   // ---- Estado por zona (segun Tipo de Orden seleccionado arriba) ----
-  const etOrders = filterByTipoOrden(state.orders);
+  // Excluye ordenes cerradas/completadas (priority 4): esta tabla es sobre trabajo activo/pendiente.
+  const etOrders = filterByTipoOrden(state.orders).filter(function(o){ return o.priority!==4; });
   const ze={};
   const incQ = o => estadoMetric==='cli' ? (o.clientes||0) : 1;
   etOrders.forEach(o=>{const z=o.zona||'Sin zona'; if(!ze[z]) ze[z]={sa:0,ruta:0,sitio:0,tot:0}; const q=incQ(o); ze[z].tot+=q;
@@ -2226,7 +2227,7 @@ function renderMatrix(){
       ${zEst.length ? zEst.map(z=>`<tr><td class="rowlabel">${zonaLabel(z)}</td>${cell(ze[z].sa)}${cell(ze[z].ruta)}${cell(ze[z].sitio)}${cell(ze[z].tot)}</tr>`).join('') : '<tr><td colspan="5" class="empty">SIN DATOS</td></tr>'}
       <tr class="total"><td class="rowlabel">Total</td>${cell(tSa)}${cell(tRu)}${cell(tSi)}${cell(tTo)}</tr>
     </table>
-    <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · mostrando <b>${metLbl}</b> · <b>S/asig</b>: sin cuadrilla · <b>En ruta</b>: despachada / en camino · <b>En sitio</b>: cuadrilla trabajando.</div>`;
+    <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · mostrando <b>${metLbl}</b> · <b>S/asig</b>: sin cuadrilla · <b>En ruta</b>: despachada / en camino · <b>En sitio</b>: cuadrilla trabajando · excluye ordenes cerradas/completadas.</div>`;
 
   // ---- Tiempo por zona ----
   function ageLabel(hoursFloat){
@@ -2234,7 +2235,8 @@ function renderMatrix(){
     const d = Math.floor(totalMin/1440), h = Math.floor((totalMin%1440)/60);
     return d>0 ? d+'d '+h+'h' : h+'h';
   }
-  const tOrders = filterByTipoOrden(state.orders).map(o=>Object.assign({_h:esperaMinutes(o.espera)/60, _zona:o.zona||'Sin zona'}, o));
+  // Excluye ordenes cerradas/completadas (priority 4): el "tiempo de espera" solo aplica a lo que sigue pendiente.
+  const tOrders = filterByTipoOrden(state.orders).filter(function(o){ return o.priority!==4; }).map(o=>Object.assign({_h:esperaMinutes(o.espera)/60, _zona:o.zona||'Sin zona'}, o));
   const tZonas = Array.from(new Set(tOrders.map(o=>o._zona))).sort();
   const tRows = tZonas.map(z=>{
     const list = tOrders.filter(o=>o._zona===z);
@@ -2251,7 +2253,7 @@ function renderMatrix(){
       ${tRows.length ? tRows.map(r=>`<tr><td class="rowlabel">${zonaLabel(r.z)}</td>${cell(r.ord)}${cell(r.cli)}<td class="num">${ageLabel(r.avgH)}</td><td class="num">${r.oldest?ageLabel(r.oldest._h):'—'}</td></tr>`).join('') : '<tr><td colspan="5" class="empty">SIN DATOS</td></tr>'}
       <tr class="total"><td class="rowlabel">Total</td>${cell(tTotOrd)}${cell(tTotCli)}<td class="num">—</td><td class="num">${allOldest?ageLabel(allOldest._h):'—'}</td></tr>
     </table>
-    <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · Espera = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}).${allOldest?` Orden más antigua general: <b>#${escHtml(allOldest.id)}</b> (${ageLabel(allOldest._h)}, ${zonaLabel(allOldest.zona)}).`:''}</div>
+    <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · Espera = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}) · excluye ordenes cerradas/completadas.${allOldest?` Orden más antigua (pendiente): <b>#${escHtml(allOldest.id)}</b> (${ageLabel(allOldest._h)}, ${zonaLabel(allOldest.zona)}).`:''}</div>
   `;
   const comboHtml = buildDomCriticas24hHtml() + estadoHtml + tiempoHtml;
 
