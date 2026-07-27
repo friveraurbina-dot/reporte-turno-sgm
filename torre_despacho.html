@@ -1110,7 +1110,7 @@ function domTop10PorZona(){
   const zonas = Object.keys(byZona).sort(function(a,b){ return byZona[b].length - byZona[a].length; });
   return zonas.map(function(z){
     const list = byZona[z].slice().sort(function(a,b){ return esperaMinutes(b.espera) - esperaMinutes(a.espera); });
-    return {zona:z, total:list.length, top10:list.slice(0,10)};
+    return {zona:z, total:list.length, top10:list.slice(0,10), all:list};
   });
 }
 
@@ -1130,6 +1130,29 @@ function buildDomTop10Html(){
         }).join('')}
       </table>`;
     }).join('')}
+  `;
+}
+
+function buildDomDetalleCompletoHtml(){
+  const grupos = domTop10PorZona();
+  if(!grupos.length) return '';
+  const totalOrd = grupos.reduce(function(a,g){ return a+g.total; },0);
+  const EST_LBL={nuevo:'Sin asignar',despachado:'Despachado',en_camino:'En camino',llego:'En sitio',en_progreso:'En progreso'};
+  return `
+    <details style="margin-top:14px;">
+      <summary style="cursor:pointer; font-weight:700; font-size:11.5px; color:var(--accent, #d33);">📋 Ver detalle completo de todas las prioridades (${totalOrd} órdenes domiciliarias, ordenadas por antigüedad dentro de cada zona)</summary>
+      <div class="note" style="margin:6px 0 8px;">Listado completo por zona para apoyar la gestión y asignación de recursos. Colapsa esta sección para volver a la vista ejecutiva.</div>
+      ${grupos.map(function(g){
+        return `
+        <div style="font-weight:700; margin-top:10px; margin-bottom:4px; font-size:11.5px;">${zonaLabel(g.zona)} <span style="font-weight:400; color:var(--muted);">(${g.total} en total)</span></div>
+        <table class="matrix">
+          <tr><th>#</th><th style="text-align:left;">Orden</th><th style="text-align:left;">Comuna</th><th>Clientes</th><th>Espera</th><th style="text-align:left;">Estado</th><th style="text-align:left;">Cuadrilla</th></tr>
+          ${g.all.map(function(o,i){
+            return `<tr><td>${i+1}</td><td style="text-align:left;">#${o.id}${o.electrodependiente?' ♥':''}</td><td style="text-align:left;">${o.comuna||'—'}</td><td class="num">${o.clientes||0}</td><td class="num">${o.espera||'—'}</td><td style="text-align:left;">${EST_LBL[o.estado]||o.estado||'—'}</td><td style="text-align:left;">${o.crew||'—'}</td></tr>`;
+          }).join('')}
+        </table>`;
+      }).join('')}
+    </details>
   `;
 }
 
@@ -2212,7 +2235,7 @@ function renderMatrix(){
     </table>
     <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · Espera = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}).${allOldest?` Orden más antigua general: <b>#${escHtml(allOldest.id)}</b> (${ageLabel(allOldest._h)}, ${zonaLabel(allOldest.zona)}).`:''}</div>
   `;
-  const comboHtml = buildDomCriticas24hHtml() + estadoHtml + tiempoHtml + (bitacoraTipoFilter==='DOM' ? buildDomTop10Html() : '');
+  const comboHtml = buildDomCriticas24hHtml() + buildDomTop10Html() + buildDomDetalleCompletoHtml() + estadoHtml + tiempoHtml;
 
   const tabsHtml=`
     <div class="matrix-tabs">
