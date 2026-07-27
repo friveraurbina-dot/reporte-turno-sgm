@@ -1080,6 +1080,39 @@ function esperaMinutes(espera){
   return (h||0)*60 + (m||0);
 }
 
+function fmtHorasEdad(hoursFloat){
+  const totalMin = Math.max(0, Math.round(hoursFloat*60));
+  const d = Math.floor(totalMin/1440), h = Math.floor((totalMin%1440)/60);
+  return d>0 ? d+'d '+h+'h' : h+'h';
+}
+
+function domZonasCriticas24h(){
+  const orders = (state.orders||[]).filter(function(o){ return o.tipo==='DOM'; });
+  const map = {};
+  orders.forEach(function(o){
+    const h = esperaMinutes(o.espera)/60;
+    if(h < 24) return;
+    const z = o.zona || 'Sin zona';
+    if(!map[z]) map[z] = {zona:z, n:0, clientes:0, maxH:0};
+    map[z].n++; map[z].clientes += (o.clientes||0);
+    if(h > map[z].maxH) map[z].maxH = h;
+  });
+  return Object.values(map).sort(function(a,b){ return b.clientes - a.clientes; });
+}
+
+function buildDomCriticas24hHtml(){
+  const rows = domZonasCriticas24h();
+  if(!rows.length){
+    return `<div class="note" style="margin:8px 0; border-left:3px solid #2E7D32; padding-left:8px;">✅ Sin órdenes domiciliarias con más de 24 h de espera en este snapshot.</div>`;
+  }
+  const totalOrd = rows.reduce(function(a,r){return a+r.n;},0), totalCli = rows.reduce(function(a,r){return a+r.clientes;},0);
+  return `
+    <div class="note" style="margin:8px 0; border-left:3px solid var(--red); padding-left:8px;">
+      <b>⏱ Zonas a priorizar — Domiciliario &gt; 24 h de espera</b> (${totalOrd} órdenes · ${totalCli} clientes)<br>
+      ${rows.map(function(r){ return `<b>${zonaLabel(r.zona)}</b>: ${r.n} órd. / ${r.clientes} cli. (más antigua ${fmtHorasEdad(r.maxH)})`; }).join(' &nbsp;·&nbsp; ')}
+    </div>`;
+}
+
 // ===== Analisis y Priorizacion: agregacion + tiempos reales de traslado (OSRM) =====
 function pctRankVal(vals, v){
   const s = vals.slice().sort((a,b)=>a-b); const n = s.length;
@@ -1852,7 +1885,8 @@ function renderPropuesta(){
       <span><span class="risk-dot alto"></span> Riesgo alto — cliente-horas ≥ 50</span>
       <span><span class="risk-dot medio"></span> Riesgo medio — ≥ 15</span>
       <span><span class="risk-dot bajo"></span> Riesgo bajo</span>
-    </div>`;
+    </div>
+    ${buildDomCriticas24hHtml()}`;
   html += topN.map((s,i)=>{
     const o = s.o;
     const tipoColor = o.tipo==='MT' ? 'var(--amber)' : 'var(--cyan)';
@@ -2091,7 +2125,8 @@ function renderMatrix(){
       ${zonas.length ? zonas.map(z=>`<tr><td class="rowlabel">${zonaLabel(z)}</td>${cell(zc[z]||0)}${cell(zo[z]||0)}</tr>`).join('') : '<tr><td colspan="3" class="empty">SIN DATOS</td></tr>'}
       <tr class="total"><td class="rowlabel">Total</td>${cell(tUni)}${cell(tOrdZ)}</tr>
     </table>
-    <div class="note" style="margin-top:8px;">Unidades (cuadrillas) asignadas a <b>órdenes domiciliarias (DOM)</b>, por zona.</div>`;
+    <div class="note" style="margin-top:8px;">Unidades (cuadrillas) asignadas a <b>órdenes domiciliarias (DOM)</b>, por zona.</div>
+    ${buildDomCriticas24hHtml()}`;
 
   // ---- Estado por zona (segun Tipo de Orden seleccionado arriba) ----
   const etOrders = filterByTipoOrden(state.orders);
@@ -2144,7 +2179,7 @@ function renderMatrix(){
     </table>
     <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · Espera = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}).${allOldest?` Orden más antigua general: <b>#${escHtml(allOldest.id)}</b> (${ageLabel(allOldest._h)}, ${zonaLabel(allOldest.zona)}).`:''}</div>
   `;
-  const comboHtml = estadoHtml + tiempoHtml;
+  const comboHtml = buildDomCriticas24hHtml() + estadoHtml + tiempoHtml;
 
   const tabsHtml=`
     <div class="matrix-tabs">
