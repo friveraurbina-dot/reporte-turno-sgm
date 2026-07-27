@@ -201,6 +201,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 .pill.st-despachado{background:rgba(95,211,196,.15); color:var(--teal);}
 .pill.st-sinasignar{background:rgba(242,167,59,.15); color:var(--amber);}
 .pill.st-disponible{background:rgba(87,217,224,.15); color:var(--cyan);}
+.pill.st-suspendida{background:rgba(142,95,216,.15); color:#8e5fd8;}
 .pill.emergency{background:rgba(229,72,77,.18); color:var(--red);}
 .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
 
@@ -734,11 +735,11 @@ async function resetState(){
   renderAll();
 }
 
-const STATUS_LABEL = {llego:'En sitio', despachado:'Despachado', en_camino:'En camino', sin_asignar:'Sin asignar', en_progreso:'En progreso', nuevo:'Nuevo · sin asignar', disponible:'Disponible'};
-const STATUS_CLASS = {llego:'st-llego', despachado:'st-despachado', en_camino:'st-camino', sin_asignar:'st-sinasignar', en_progreso:'st-llego', nuevo:'st-sinasignar', disponible:'st-disponible'};
-const STATUS_COLOR = {llego:'#3fc77a', despachado:'#5fd3c4', en_camino:'#4c9eeb', sin_asignar:'#f2a73b', en_progreso:'#3fc77a', nuevo:'#f2a73b', disponible:'#57d9e0'};
+const STATUS_LABEL = {llego:'En sitio', despachado:'Despachado', en_camino:'En camino', sin_asignar:'Sin asignar', en_progreso:'En progreso', nuevo:'Nuevo · sin asignar', disponible:'Disponible', suspendida:'Suspendida'};
+const STATUS_CLASS = {llego:'st-llego', despachado:'st-despachado', en_camino:'st-camino', sin_asignar:'st-sinasignar', en_progreso:'st-llego', nuevo:'st-sinasignar', disponible:'st-disponible', suspendida:'st-suspendida'};
+const STATUS_COLOR = {llego:'#3fc77a', despachado:'#5fd3c4', en_camino:'#4c9eeb', sin_asignar:'#f2a73b', en_progreso:'#3fc77a', nuevo:'#f2a73b', disponible:'#57d9e0', suspendida:'#8e5fd8'};
 // Variante oscura para texto/UI sobre fondo blanco (los marcadores del mapa siguen usando STATUS_COLOR, más vivo)
-const STATUS_TEXT_COLOR = {llego:'#1F9D55', despachado:'#0F9488', en_camino:'#2B6CB0', sin_asignar:'#B9770E', en_progreso:'#1F9D55', nuevo:'#B9770E', disponible:'#0E8DA6'};
+const STATUS_TEXT_COLOR = {llego:'#1F9D55', despachado:'#0F9488', en_camino:'#2B6CB0', sin_asignar:'#B9770E', en_progreso:'#1F9D55', nuevo:'#B9770E', disponible:'#0E8DA6', suspendida:'#6b3fa0'};
 
 const BASE_CURAUMA = {lat:-33.1197, lon:-71.5542};
 
@@ -1147,7 +1148,7 @@ function buildDomDetalleCompletoHtml(){
   const grupos = domTop10PorZona();
   if(!grupos.length) return '';
   const totalOrd = grupos.reduce(function(a,g){ return a+g.total; },0);
-  const EST_LBL={nuevo:'Sin asignar',despachado:'Despachado',en_camino:'En camino',llego:'En sitio',en_progreso:'En progreso'};
+  const EST_LBL={nuevo:'Sin asignar',despachado:'Despachado',en_camino:'En camino',llego:'En sitio',en_progreso:'En progreso',suspendida:'Suspendida'};
   return `
     <details style="margin-top:14px;">
       <summary style="cursor:pointer; font-weight:700; font-size:11.5px; color:var(--accent, #d33);">📋 Ver detalle completo de todas las prioridades (${totalOrd} órdenes domiciliarias, ordenadas por antigüedad dentro de cada zona)</summary>
@@ -3049,7 +3050,7 @@ document.querySelectorAll('.tab').forEach(t=>{
 document.getElementById('reset-btn').addEventListener('click', resetState);
 function exportOrdersXlsx(){
   if(typeof XLSX==='undefined'){ alert('No se pudo cargar la libreria de Excel. Reintente con conexion.'); return; }
-  const EST_LBL={nuevo:'Sin asignar',despachado:'Despachado',en_camino:'En camino',llego:'En sitio',en_progreso:'En progreso'};
+  const EST_LBL={nuevo:'Sin asignar',despachado:'Despachado',en_camino:'En camino',llego:'En sitio',en_progreso:'En progreso',suspendida:'Suspendida'};
   function zlab(z){ return (z||'').replace('Zona_','').replace(/_/g,' '); }
   function fmtEsperaH(espera){
     const m = esperaMinutes(espera);
