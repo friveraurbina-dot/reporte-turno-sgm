@@ -1171,6 +1171,7 @@ function renderPrioridadDom(){
   if(!el) return;
   el.innerHTML = buildDomCriticas24hHtml() + buildDomTop10Html() + buildDomDetalleCompletoHtml();
 }
+window.renderPrioridadDom = renderPrioridadDom;
 
 function buildDomCriticas24hHtml(){
   const rows = domZonasCriticas24h();
