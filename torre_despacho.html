@@ -2945,13 +2945,213 @@ function buildReportHTML(){
   return parts.join('\n');
 }
 
+function buildPrioridadReportHTML(){
+  const EST_LBL={nuevo:'Sin asignar',despachado:'Despachado',en_camino:'En camino',llego:'En sitio',en_progreso:'En progreso',suspendida:'Suspendida'};
+  function zl(z){ return (z||'').replace('Zona_','').replace(/_/g,' ') || 'Sin zona'; }
+  function fmtH(hoursFloat){
+    const totalMin = Math.max(0, Math.round(hoursFloat*60));
+    const d = Math.floor(totalMin/1440), h = Math.floor((totalMin%1440)/60);
+    return d>0 ? d+'d '+h+'h' : h+'h';
+  }
+  function estadoTag(dias){
+    if(dias===Infinity) return {color:'#c0392b', label:'Sin dotación'};
+    if(dias > 2) return {color:'#c0392b', label:'Crítico (&gt;2 días)'};
+    if(dias > 1) return {color:'#d38b00', label:'Ajustado (1-2 días)'};
+    return {color:'#2e7d32', label:'Manejable (&lt;1 día)'};
+  }
+
+  const domOpen = (state.orders||[]).filter(function(o){ return o.tipo==='DOM' && o.priority!==4; });
+  const domClientesTotal = domOpen.reduce(function(s,o){ return s+(o.clientes||0); }, 0);
+  const critRows = domZonasCriticas24h();
+  const totalCritN = critRows.reduce(function(s,r){ return s+r.n; }, 0);
+  const totalCritCli = critRows.reduce(function(s,r){ return s+r.clientes; }, 0);
+  const top10Groups = domTop10PorZona();
+
+  // ---- capacidad / backlog por zona ----
+  const crewSeenByZona = {}, ordenesPorZona = {}, clientesPorZona = {};
+  domOpen.forEach(function(o){
+    const z = o.zona;
+    if(!z || !DOM_FLOTA_TOTAL[z]) return;
+    ordenesPorZona[z] = (ordenesPorZona[z]||0)+1;
+    clientesPorZona[z] = (clientesPorZona[z]||0) + (o.clientes||0);
+    if(o.crew){ (crewSeenByZona[z] = crewSeenByZona[z] || {})[o.crew] = true; }
+  });
+  const flotaRows = Object.keys(DOM_FLOTA_TOTAL).map(function(z){
+    const flotaTotal = DOM_FLOTA_TOTAL[z];
+    const activos = crewSeenByZona[z] ? Object.keys(crewSeenByZona[z]).length : 0;
+    const libres = Math.max(0, flotaTotal-activos);
+    const ordenes = ordenesPorZona[z]||0;
+    const clientes = clientesPorZona[z]||0;
+    const capacidadDia = flotaTotal*DOM_ORDENES_PROMEDIO_MOVIL_DIA;
+    const dias = capacidadDia>0 ? (clientes/capacidadDia) : Infinity;
+    const cpmDotacion = flotaTotal>0 ? (clientes/flotaTotal) : Infinity;
+    return {zona:z, flotaTotal:flotaTotal, activosAhora:activos, libres:libres, ordenes:ordenes, clientes:clientes, capacidadDia:capacidadDia, dias:dias, cpmDotacion:cpmDotacion};
+  });
+  flotaRows.sort(function(a,b){ const da=a.dias===Infinity?1e9:a.dias, db=b.dias===Infinity?1e9:b.dias; return db-da; });
+
+  const totalFlota = Object.values(DOM_FLOTA_TOTAL).reduce(function(a,b){return a+b;},0);
+  const totalBacklog = flotaRows.reduce(function(a,r){return a+r.clientes;},0);
+  const totalCapDia = totalFlota*DOM_ORDENES_PROMEDIO_MOVIL_DIA;
+  const totalDias = totalCapDia>0 ? totalBacklog/totalCapDia : Infinity;
+
+  // ---- propuesta de redistribución (dotación real + cercanía de bases) ----
+  const donantesPool = flotaRows.filter(function(r){return r.libres>0;}).map(function(r){return Object.assign({},r);});
+  const receptores = flotaRows.filter(function(r){return r.libres===0 && r.ordenes>0;})
+    .sort(function(a,b){return b.cpmDotacion-a.cpmDotacion;});
+  const sugerencias = [];
+  receptores.slice(0,6).forEach(function(dest){
+    const candidatos = donantesPool.filter(function(c){return c.libres>0 && c.zona!==dest.zona;});
+    if(!candidatos.length) return;
+    let best=null, bestMin=null;
+    candidatos.forEach(function(c){
+      const b1=DOM_ZONA_BASE[c.zona], b2=DOM_ZONA_BASE[dest.zona];
+      const t = (b1&&b2) ? estTravelMin(haversineKm(b1,b2)) : null;
+      if(best===null || (t!=null && (bestMin==null||t<bestMin))){ best=c; bestMin=t; }
+    });
+    sugerencias.push({origen:best.zona, destino:dest.zona, minTraslado: bestMin!=null?Math.round(bestMin):null,
+      origenFlota:best.flotaTotal, origenLibres:best.libres, destinoFlota:dest.flotaTotal, destinoCpm:dest.cpmDotacion});
+    best.libres -= 1;
+  });
+
+  // ---- HTML: zonas criticas ----
+  let critHtml = '';
+  critRows.forEach(function(c){
+    critHtml += '<tr><td>'+zl(c.zona)+'</td><td class="num">'+c.n+'</td><td class="num">'+c.clientes+'</td><td class="num">'+fmtH(c.maxH)+'</td></tr>';
+  });
+
+  // ---- HTML: capacidad ----
+  let capHtml = '';
+  flotaRows.forEach(function(f){
+    const tag = estadoTag(f.dias);
+    const diasTxt = f.dias===Infinity ? '—' : f.dias.toFixed(1);
+    capHtml += '<tr><td>'+zl(f.zona)+'</td><td class="num">'+f.flotaTotal+'</td><td class="num">'+f.activosAhora+'</td>'
+      +'<td class="num">'+f.libres+'</td><td class="num">'+f.ordenes+'</td><td class="num">'+f.clientes+'</td>'
+      +'<td class="num">'+f.capacidadDia.toFixed(0)+'</td><td class="num">'+diasTxt+'</td>'
+      +'<td><span class="tag" style="background:'+tag.color+'">'+tag.label+'</span></td></tr>';
+  });
+
+  // ---- HTML: redistribución ----
+  let sugHtml;
+  if(sugerencias.length){
+    sugHtml = '<ol class="reco-list">' + sugerencias.map(function(s){
+      const tTxt = s.minTraslado!=null ? (s.minTraslado+' min entre bases') : 'tiempo de traslado no disponible';
+      return '<li>Mover <b>1 móvil</b> desde la base de <b>'+zl(s.origen)+'</b> (dotación '+s.origenFlota+', '+s.origenLibres+' libres estimados) hacia <b>'+zl(s.destino)+'</b> (dotación '+s.destinoFlota+', '+s.destinoCpm.toFixed(1)+' clientes/móvil) — traslado estimado '+tTxt+'.</li>';
+    }).join('') + '</ol>';
+  } else {
+    sugHtml = '<p class="note">Con la dotación total actual no se identifican zonas con móviles libres claros para reforzar otras zonas.</p>';
+  }
+
+  // ---- HTML: detalle top10 por zona ----
+  let top10Html = '', totalOrdDetalle = 0;
+  top10Groups.forEach(function(g){
+    totalOrdDetalle += g.top10.length;
+    const rows = g.top10.map(function(o,i){
+      const est = EST_LBL[o.estado] || o.estado || '—';
+      return '<tr><td class="num">'+(i+1)+'</td><td>#'+o.id+'</td><td>'+(o.comuna||'—')+'</td>'
+        +'<td class="num">'+(o.clientes||0)+'</td><td class="num">'+(o.espera||'—')+'</td>'
+        +'<td>'+est+'</td><td>'+(o.crew||'—')+'</td></tr>';
+    }).join('');
+    top10Html += '<h4>'+zl(g.zona)+' <span class="muted">('+g.total+' órdenes domiciliarias abiertas en total)</span></h4>'
+      +'<table class="data"><tr><th>#</th><th>Orden</th><th>Comuna</th><th>Clientes</th><th>Espera</th><th>Estado</th><th>Cuadrilla</th></tr>'+rows+'</table>';
+  });
+
+  const snapDt = (typeof DATA_SNAPSHOT_TIME!=='undefined' && DATA_SNAPSHOT_TIME) ? new Date(DATA_SNAPSHOT_TIME) : new Date();
+  const snapTxt = snapDt.toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const genTxt = new Date().toLocaleString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const maxHCrit = critRows.length ? Math.max.apply(null, critRows.map(function(c){return c.maxH;})) : 0;
+
+  return '<!DOCTYPE html>'
++'<html lang="es"><head><meta charset="UTF-8">'
++'<title>Informe de Priorización Domiciliaria — Chilquinta</title>'
++'<style>'
++'  :root { --red:#c0392b; --ink:#1c1c1c; --muted:#666; --line:#e2e2e2; --bg:#fff; }'
++'  * { box-sizing:border-box; }'
++'  body { font-family: "Segoe UI", Arial, sans-serif; color:var(--ink); background:#f4f5f7; margin:0; padding:0; }'
++'  .page { max-width:960px; margin:0 auto; background:var(--bg); padding:40px 48px 60px; }'
++'  header.doc-header { border-bottom:3px solid var(--red); padding-bottom:16px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:flex-end; }'
++'  header.doc-header h1 { margin:0 0 4px; font-size:22px; }'
++'  header.doc-header .sub { color:var(--muted); font-size:13px; }'
++'  header.doc-header .meta { text-align:right; font-size:12px; color:var(--muted); }'
++'  h2 { font-size:16px; border-left:4px solid var(--red); padding-left:10px; margin-top:36px; margin-bottom:10px; }'
++'  h4 { font-size:12.5px; margin:16px 0 4px; }'
++'  p { font-size:13px; line-height:1.55; }'
++'  .muted { color:var(--muted); font-weight:400; }'
++'  .note { font-size:12px; color:var(--muted); background:#f9f9f9; border-left:3px solid var(--line); padding:8px 10px; margin:8px 0; }'
++'  .kpis { display:flex; gap:12px; margin:16px 0 8px; flex-wrap:wrap; }'
++'  .kpi { flex:1; min-width:140px; border:1px solid var(--line); border-radius:6px; padding:10px 14px; }'
++'  .kpi .n { font-size:22px; font-weight:700; color:var(--red); }'
++'  .kpi .l { font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }'
++'  table { border-collapse:collapse; width:100%; margin:10px 0 6px; }'
++'  table th, table td { border:1px solid var(--line); padding:5px 8px; font-size:12px; }'
++'  table th { background:#faf4f2; text-align:left; font-weight:600; }'
++'  td.num, th.num { text-align:right; }'
++'  .tag { color:#fff; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:600; }'
++'  .reco-list li { font-size:13px; margin-bottom:8px; line-height:1.5; }'
++'  .exec-box { background:#fbeceb; border:1px solid #f0d3d0; border-radius:6px; padding:14px 16px; margin:14px 0 20px; font-size:13px; line-height:1.6; }'
++'  .anexo-sep { text-align:center; margin:40px 0 4px; color:var(--muted); font-size:11px; letter-spacing:.08em; border-top:1px dashed var(--line); line-height:0; }'
++'  .anexo-sep span { background:var(--bg); padding:0 10px; }'
++'  footer { margin-top:24px; padding-top:14px; font-size:11px; color:var(--muted); }'
++'  details.detalle-pie { border:1px solid var(--line); border-radius:6px; padding:10px 14px; margin-bottom:14px; background:#fafafa; }'
++'  details.detalle-pie summary { cursor:pointer; font-weight:600; font-size:12.5px; color:var(--ink); }'
++'  details.detalle-pie .detalle-body { margin-top:10px; }'
++'  .pie-final { padding-top:8px; }'
++'  @media print { body{background:#fff;} .page{box-shadow:none; padding:0;} }'
++'</style></head><body><div class="page">'
++'<header class="doc-header"><div><h1>Informe de Priorización — Atención Domiciliaria</h1>'
++'<div class="sub">Torre de Control Despacho Distribución · Chilquinta</div></div>'
++'<div class="meta">Snapshot de datos: <b>'+snapTxt+'</b><br>Informe generado: '+genTxt+'</div></header>'
++'<h2>Resumen ejecutivo</h2>'
++'<div class="kpis">'
++'<div class="kpi"><div class="n">'+domOpen.length+'</div><div class="l">Órdenes DOM abiertas</div></div>'
++'<div class="kpi"><div class="n">'+domClientesTotal+'</div><div class="l">Clientes afectados</div></div>'
++'<div class="kpi"><div class="n">'+critRows.length+'</div><div class="l">Zonas con backlog &gt;24h</div></div>'
++'<div class="kpi"><div class="n">'+totalCritN+'</div><div class="l">Órdenes &gt;24h de espera</div></div>'
++'</div>'
++'<div class="exec-box">Al cierre del snapshot ('+snapTxt+') hay <b>'+domOpen.length+' órdenes domiciliarias abiertas</b> (excluye cerradas/completadas), '
++'afectando a <b>'+domClientesTotal+' clientes</b>. De ellas, <b>'+totalCritN+' órdenes ('+totalCritCli+' clientes)</b> llevan más de 24 horas de espera, '
++'concentradas principalmente en <b>'+(critRows.length?zl(critRows[0].zona):'—')+'</b> ('+(critRows.length?critRows[0].n:0)+' órd., espera máxima '+(critRows.length?fmtH(critRows[0].maxH):'—')+'). '
++'Este informe prioriza por zona operativa para apoyar la decisión de reasignación de móviles de Empalmes.</div>'
++'<h2>1. Zonas a priorizar — backlog con más de 24&nbsp;h de espera</h2>'
++'<p>Ordenado de mayor a menor cantidad de clientes afectados. Espera máx. = la orden más antigua sin resolver en la zona.</p>'
++'<table><tr><th>Zona operativa</th><th class="num">Órdenes &gt;24h</th><th class="num">Clientes</th><th class="num">Espera máxima</th></tr>'+critHtml+'</table>'
++'<h2>2. Capacidad de atención vs. backlog actual</h2>'
++'<p>Supuesto de rendimiento: <b>5,5 órdenes/móvil/día</b>. "Días estimados" = backlog de clientes de la zona ÷ (dotación total × rendimiento diario), '
++'asumiendo dedicación completa a resolver pendientes — es un piso, no un compromiso de plazo. "Activos ahora" = móviles con una orden domiciliaria abierta '
++'en este snapshot; "libres" = dotación total − activos ahora (estimado).</p>'
++'<table><tr><th>Zona operativa</th><th class="num">Dotación total</th><th class="num">Activos ahora</th><th class="num">Libres (est.)</th>'
++'<th class="num">Órdenes</th><th class="num">Clientes (backlog)</th><th class="num">Capacidad/día</th><th class="num">Días estimados</th><th>Estado</th></tr>'
++capHtml
++'<tr style="font-weight:700;"><td>Total región</td><td class="num">'+totalFlota+'</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>'
++'<td class="num">'+totalBacklog+'</td><td class="num">'+totalCapDia.toFixed(0)+'</td><td class="num">'+(totalDias===Infinity?'—':totalDias.toFixed(1))+'</td><td></td></tr></table>'
++'<div class="note">Nota importante: la dotación total agregada resulta "manejable" en la mayoría de las zonas bajo este supuesto de rendimiento diario, '
++'pero la sección 1 muestra órdenes con hasta '+(critRows.length?fmtH(maxHCrit):'—')+' de espera real. Esto indica que el cuello de botella no es solo la '
++'dotación total, sino su distribución/priorización dentro de la zona (móviles concentrados en órdenes recientes o de menor prioridad mientras las más antiguas '
++'quedan atrás). Se recomienda revisar también el criterio de despacho interno, no solo el número de móviles.</div>'
++'<h2>3. Propuesta de redistribución de móviles entre zonas</h2>'
++'<p>Basada en dotación real por zona (planilla Segmento_DOM) y cercanía estimada entre bases zonales.</p>'
++sugHtml
++'<p class="note">Propuesta automática como punto de partida — despacho debe confirmar disponibilidad real del móvil antes de mover unidades.</p>'
++'<div class="anexo-sep"><span>ANEXO — DETALLE OPERATIVO</span></div>'
++'<footer>'
++'<details class="detalle-pie"><summary>📋 Ver detalle completo — Top 10 órdenes más antiguas por zona ('+top10Groups.length+' zonas, '+totalOrdDetalle+' órdenes listadas)</summary>'
++'<div class="detalle-body"><p>Para uso operativo directo de las áreas: las órdenes que deben priorizarse primero en cada zona, ordenadas por tiempo de espera.</p>'
++top10Html
++'</div></details>'
++'<div class="pie-final">Generado automáticamente desde Torre de Control Despacho Distribución (torre_data.json, snapshot '+snapTxt+'). '
++'Excluye órdenes cerradas/completadas. Dotación de móviles según planilla Segmento_DOM (27.07.2026).</div>'
++'</footer></div></body></html>';
+}
+
 function downloadReport(){
-  const html = buildReportHTML();
+  const prioView = document.getElementById('prioridad-view');
+  const enPrioridad = prioView && prioView.style.display !== 'none' && prioView.style.display !== '';
+  const html = enPrioridad ? buildPrioridadReportHTML() : buildReportHTML();
+  const filename = enPrioridad ? 'informe_priorizacion_domiciliaria.html' : 'reporte_torre_despacho.html';
   const blob = new Blob([html], {type:'text/html'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'reporte_torre_despacho.html';
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
