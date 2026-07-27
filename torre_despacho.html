@@ -443,7 +443,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
     </div>
     <div class="sidepanel">
       <div id="priority-matrix"></div>
-      <div class="tabcontent" id="tab-log"></div>
+      <div class="tabcontent" id="tab-log" style="display:none;"></div>
       <div class="tabcontent" id="tab-nueva" style="display:none;"></div>
       <div class="tabcontent" id="tab-unidades"></div>
       <div class="tabcontent" id="tab-propuesta" style="display:none;"></div>
@@ -1100,6 +1100,39 @@ function domZonasCriticas24h(){
   return Object.values(map).sort(function(a,b){ return b.clientes - a.clientes; });
 }
 
+function domTop10PorZona(){
+  const orders = (state.orders||[]).filter(function(o){ return o.tipo==='DOM'; });
+  const byZona = {};
+  orders.forEach(function(o){
+    const z = o.zona || 'Sin zona';
+    (byZona[z] = byZona[z] || []).push(o);
+  });
+  const zonas = Object.keys(byZona).sort(function(a,b){ return byZona[b].length - byZona[a].length; });
+  return zonas.map(function(z){
+    const list = byZona[z].slice().sort(function(a,b){ return esperaMinutes(b.espera) - esperaMinutes(a.espera); });
+    return {zona:z, total:list.length, top10:list.slice(0,10)};
+  });
+}
+
+function buildDomTop10Html(){
+  const grupos = domTop10PorZona();
+  if(!grupos.length) return '<div class="note">Sin órdenes domiciliarias en este snapshot.</div>';
+  return `
+    <div class="section-label" style="margin-top:14px;">🏠 Top 10 Domiciliario por zona — prioridad por antigüedad</div>
+    <div class="note" style="margin-bottom:8px;">Mientras mayor el tiempo sin energía, mayor la prioridad de atención. Máximo 10 órdenes más antiguas por zona (electrodependientes ♥ destacados).</div>
+    ${grupos.map(function(g){
+      return `
+      <div style="font-weight:700; margin-top:10px; margin-bottom:4px; font-size:11.5px;">${zonaLabel(g.zona)} <span style="font-weight:400; color:var(--muted);">(${g.total} en total)</span></div>
+      <table class="matrix">
+        <tr><th>#</th><th style="text-align:left;">Orden</th><th style="text-align:left;">Comuna</th><th>Clientes</th><th>Espera</th></tr>
+        ${g.top10.map(function(o,i){
+          return `<tr><td>${i+1}</td><td style="text-align:left;">#${o.id}${o.electrodependiente?' ♥':''}</td><td style="text-align:left;">${o.comuna||'—'}</td><td class="num">${o.clientes||0}</td><td class="num">${o.espera||'—'}</td></tr>`;
+        }).join('')}
+      </table>`;
+    }).join('')}
+  `;
+}
+
 function buildDomCriticas24hHtml(){
   const rows = domZonasCriticas24h();
   if(!rows.length){
@@ -1658,8 +1691,6 @@ function renderLog(){
   const rreeIds = rreeCrewIds();
   const rreeCount = visibleOrders().filter(o=>rreeIds.has(o.crew)).length;
   let html = `
-    <div class="section-label">⏱ Priorización por tiempo sin energía</div>
-    <div class="note" style="margin-bottom:8px;">Mientras más tiempo lleva una orden <b>sin energía</b>, mayor su prioridad de atención. Los clientes <b>electrodependientes</b> (♥) siempre encabezan la lista, sin importar su tiempo de espera.</div>
     <div class="tipo-filter">
       <button class="tipo-btn ${bitacoraTipoFilter==='ALL'?'active':''}" data-tipo="ALL">Todas (${totalCount})</button>
       <button class="tipo-btn ${bitacoraTipoFilter==='DOM'?'active':''}" data-tipo="DOM">🏠 Domiciliarias (${domCount})</button>
@@ -2181,7 +2212,7 @@ function renderMatrix(){
     </table>
     <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · Espera = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}).${allOldest?` Orden más antigua general: <b>#${escHtml(allOldest.id)}</b> (${ageLabel(allOldest._h)}, ${zonaLabel(allOldest.zona)}).`:''}</div>
   `;
-  const comboHtml = buildDomCriticas24hHtml() + estadoHtml + tiempoHtml;
+  const comboHtml = buildDomCriticas24hHtml() + estadoHtml + tiempoHtml + (bitacoraTipoFilter==='DOM' ? buildDomTop10Html() : '');
 
   const tabsHtml=`
     <div class="matrix-tabs">
@@ -2980,6 +3011,13 @@ function exportOrdersXlsx(){
   if(typeof XLSX==='undefined'){ alert('No se pudo cargar la libreria de Excel. Reintente con conexion.'); return; }
   const EST_LBL={nuevo:'Sin asignar',despachado:'Despachado',en_camino:'En camino',llego:'En sitio',en_progreso:'En progreso'};
   function zlab(z){ return (z||'').replace('Zona_','').replace(/_/g,' '); }
+  function fmtEsperaH(espera){
+    const m = esperaMinutes(espera);
+    if(!isFinite(m) || m<=0) return '';
+    const h = Math.floor(m/60), mm = Math.round(m%60);
+    const d = Math.floor(h/24), hh = h%24;
+    return d>0 ? (d+'d '+hh+'h '+mm+'m') : (hh+'h '+mm+'m');
+  }
   function row(o){ return {
     'N Orden': o.id,
     'Prioridad': 'P'+o.priority + (o.priority===1?' (maxima)':''),
@@ -2994,18 +3032,54 @@ function exportOrdersXlsx(){
     'Cuadrilla': o.crew||'',
     'Despachador': o.despachador||'',
     'Espera (h:m)': o.espera||'',
+    'Espera detalle': fmtEsperaH(o.espera),
+    'Espera minutos': Math.round(esperaMinutes(o.espera)||0),
     'ETR': (o.etr||'').replace('T',' '),
     'Electrodependiente': o.electrodependiente?'Si':'No'
   }; }
   const all = (state && state.orders) ? state.orders.slice() : [];
   const byId = (a,b)=> String(a.id).localeCompare(String(b.id));
+  const byEsperaDesc = (a,b)=> (esperaMinutes(b.espera)||0) - (esperaMinutes(a.espera)||0);
   const red = all.filter(o=>o.tipo==='MT').sort(byId).map(row);
-  const dom = all.filter(o=>o.tipo==='DOM').sort(byId).map(row);
+  const domOrders = all.filter(o=>o.tipo==='DOM');
   const ele = all.filter(o=>o.electrodependiente).sort(byId).map(row);
+
+  // Domiciliarias: agrupadas por zona, ordenadas por antiguedad (espera) descendente, con rango dentro de zona
+  const byZonaGroup = {};
+  domOrders.forEach(function(o){ const z=o.zona||'Sin zona'; (byZonaGroup[z]=byZonaGroup[z]||[]).push(o); });
+  const zonasOrdenadas = Object.keys(byZonaGroup).sort(function(a,b){ return byZonaGroup[b].length - byZonaGroup[a].length; });
+  const domRows = [];
+  const prioridadRows = [];
+  zonasOrdenadas.forEach(function(z){
+    const list = byZonaGroup[z].slice().sort(byEsperaDesc);
+    list.forEach(function(o,i){
+      const r = row(o);
+      r['Rango en zona'] = i+1;
+      r['Top 10 zona'] = (i<10) ? 'Si' : 'No';
+      domRows.push(r);
+      if(i<10){
+        prioridadRows.push({
+          'Zona': zlab(z),
+          'Rango': i+1,
+          'N Orden': o.id,
+          'Comuna': o.comuna||'',
+          'N Clientes': o.clientes||'',
+          'Espera (h:m)': o.espera||'',
+          'Espera detalle': fmtEsperaH(o.espera),
+          'Estado atencion': EST_LBL[o.estado]||o.estado||'',
+          'Cuadrilla': o.crew||'',
+          'Direccion': o.addr||'',
+          'Electrodependiente': o.electrodependiente?'Si':'No'
+        });
+      }
+    });
+  });
+
   const wb = XLSX.utils.book_new();
   const mk = a => XLSX.utils.json_to_sheet(a.length?a:[{'N Orden':'(sin ordenes)'}]);
+  XLSX.utils.book_append_sheet(wb, mk(prioridadRows), 'Top10 Prioridad x Zona');
   XLSX.utils.book_append_sheet(wb, mk(red), 'RED - Media Tension');
-  XLSX.utils.book_append_sheet(wb, mk(dom), 'Domiciliarias');
+  XLSX.utils.book_append_sheet(wb, mk(domRows), 'Domiciliarias');
   XLSX.utils.book_append_sheet(wb, mk(ele), 'Electrodependientes');
   const snap=(DATA_SNAPSHOT_TIME||'').replace('T','_').replace(/:/g,'').slice(0,15);
   XLSX.writeFile(wb, 'torre_ordenes_'+(snap||'export')+'.xlsx');
