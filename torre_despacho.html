@@ -1135,7 +1135,10 @@ function aggDomByComuna(orders){
     const lon = list.reduce((s,o)=>s+o.lon,0)/list.length;
     const esperas = list.map(o=>esperaMinutes(o.espera)/60);
     const clientes = list.reduce((s,o)=>s+(o.clientes||0),0);
-    return {key:comuna, n:list.length, clientes, avgEsperaH: esperas.reduce((a,b)=>a+b,0)/esperas.length, lat, lon, list};
+    const zonaCount = {};
+    list.forEach(o=>{ const z=o.zona||'Sin zona'; zonaCount[z]=(zonaCount[z]||0)+1; });
+    const zona = Object.keys(zonaCount).sort((a,b)=>zonaCount[b]-zonaCount[a])[0];
+    return {key:comuna, n:list.length, clientes, avgEsperaH: esperas.reduce((a,b)=>a+b,0)/esperas.length, lat, lon, list, zona};
   });
 }
 function aggRedByZona(orders){
@@ -1169,6 +1172,15 @@ function scoreRows(rows, esperaKey){
 }
 
 let propDomLoaded = false, propRedLoaded = false;
+
+const DOM_ZONA_BASE = {
+  'Zona_San_Antonio': {lat:-33.5928, lon:-71.6128, label:'San Antonio'},
+  'Zona_Valparaiso':  {lat: BASE_CURAUMA.lat, lon: BASE_CURAUMA.lon, label:'Curauma (Valparaíso)'},
+  'Zona_Costa':       {lat:-33.0245, lon:-71.5518, label:'Viña del Mar (Costa)'},
+  'Zona_Marga_Marga': {lat:-33.0458, lon:-71.4319, label:'Quilpué (Marga Marga)'},
+  'Zona_Quillota':    {lat:-32.8825, lon:-71.2489, label:'Quillota'},
+  'Zona_Aconcagua':   {lat:-32.8332, lon:-70.5981, label:'Los Andes (Aconcagua)'}
+};
 
 const DOM_FLOTA_TOTAL = {
   'Zona_Aconcagua': 8,
@@ -1218,23 +1230,69 @@ function aggDomFlotaPorZona(orders){
   return rows;
 }
 
-function buildFlotaZonaHtml(zonaRows){
+async function getZonaBaseTravelMatrix(){
+  const keys = Object.keys(DOM_ZONA_BASE);
+  const pts = keys.map(function(k){ return DOM_ZONA_BASE[k]; });
+  const mat = await osrmMatrix(pts);
+  const lookup = {};
+  if(mat.ok){
+    keys.forEach(function(k1,i){ lookup[k1] = {}; keys.forEach(function(k2,j){ lookup[k1][k2] = mat.durMin[i][j]; }); });
+    return {ok:true, keys:keys, lookup:lookup};
+  }
+  keys.forEach(function(k1){ lookup[k1] = {}; keys.forEach(function(k2){ lookup[k1][k2] = estTravelMin(haversineKm(DOM_ZONA_BASE[k1], DOM_ZONA_BASE[k2])); }); });
+  return {ok:false, keys:keys, lookup:lookup};
+}
+
+function buildFlotaZonaHtml(zonaRows, travelInfo){
   const zonaLabel = function(z){ return (z||'').replace('Zona_','').replace(/_/g,' '); };
-  const donantes = zonaRows.filter(function(r){ return r.libres>0; }).sort(function(a,b){ return b.libres - a.libres; });
+  const lookup = travelInfo && travelInfo.lookup;
+  const donantesPool = zonaRows.filter(function(r){ return r.libres>0; }).map(function(r){ return Object.assign({}, r); });
   const receptores = zonaRows.filter(function(r){ return r.libres===0 && r.ordenes>0; }).sort(function(a,b){ return b.clientesPorMovilDotacion - a.clientesPorMovilDotacion; });
-  const nSug = Math.min(donantes.length, receptores.length, 4);
-  let sugerencias = '';
-  if(nSug>0){
-    const items = [];
-    for(let i=0;i<nSug;i++){
-      const orig = donantes[i], dest = receptores[i];
-      items.push(`<li>Zona <b>${zonaLabel(orig.zona)}</b> tiene ${orig.flotaTotal} móviles en dotación y solo ${orig.activosAhora} con orden activa ahora (${orig.libres} libres) — evaluar reforzar zona <b>${zonaLabel(dest.zona)}</b>, que opera con su dotación completa (${dest.flotaTotal} móviles) y ${dest.clientesPorMovilDotacion.toFixed(1)} clientes/móvil.</li>`);
+
+  const items = [];
+  const maxSug = 6;
+  for(let i=0;i<receptores.length && items.length<maxSug;i++){
+    const dest = receptores[i];
+    const candidatos = donantesPool.filter(function(d){ return d.libres>0 && d.zona!==dest.zona; });
+    if(!candidatos.length) continue;
+    let best = candidatos[0], bestMin = lookup ? lookup[best.zona][dest.zona] : null;
+    if(lookup){
+      candidatos.forEach(function(c){
+        const t = lookup[c.zona][dest.zona];
+        if(t!=null && (bestMin==null || t<bestMin)){ best = c; bestMin = t; }
+      });
     }
+    const tiempoTxt = bestMin!=null ? `(${Math.round(bestMin)} min entre bases)` : '';
+    items.push(`<li>Mover 1 móvil desde la base de <b>${zonaLabel(best.zona)}</b> ${tiempoTxt} hacia <b>${zonaLabel(dest.zona)}</b> — origen tiene ${best.flotaTotal} móviles en dotación y ${best.libres} libres; destino opera con su dotación completa (${dest.flotaTotal} móviles) y ${dest.clientesPorMovilDotacion.toFixed(1)} clientes/móvil.</li>`);
+    best.libres -= 1;
+  }
+  let sugerencias;
+  if(items.length>0){
     sugerencias = `<ol class="prop-list">${items.join('')}</ol>`;
   } else {
     sugerencias = '<p class="prop-note">Con la dotación total actual no se identifican zonas con móviles libres para reforzar otras zonas.</p>';
   }
+
   const totalFlota = Object.values(DOM_FLOTA_TOTAL).reduce(function(a,b){return a+b;},0);
+
+  const keys = travelInfo ? travelInfo.keys : Object.keys(DOM_ZONA_BASE);
+  const matrixNote = travelInfo && travelInfo.ok
+    ? '🟢 Tiempos reales de ruta por calle (OSRM) entre las bases de cada zona'
+    : '🟡 Estimación por línea recta entre bases (sin conexión al servicio de rutas)';
+  const matrixHtml = `
+    <h3>Tiempos de traslado entre bases zonales</h3>
+    <p class="prop-note"><b>${matrixNote}</b>. Cada zona despacha sus móviles desde su propia base: San Antonio, Curauma (Valparaíso), Costa (Viña del Mar), Marga Marga (Quilpué), Quillota y Aconcagua (Los Andes). Referencia para evaluar qué zona conviene reforzar con menor tiempo de traslado.</p>
+    <table class="prop-table prop-table-num">
+      <tr><th></th>${keys.map(function(k){ return `<th>${zonaLabel(k)}</th>`; }).join('')}</tr>
+      ${keys.map(function(k1){
+        return `<tr><td style="text-align:left"><b>${zonaLabel(k1)}</b></td>${keys.map(function(k2){
+          const v = lookup ? lookup[k1][k2] : null;
+          return `<td>${k1===k2?'—':(v==null?'—':Math.round(v))}</td>`;
+        }).join('')}</tr>`;
+      }).join('')}
+    </table>
+  `;
+
   return `
     <h3>Dotación real de móviles Domiciliario por zona operativa</h3>
     <p class="prop-note">Fuente: planilla de dotación (Segmento_DOM ${DOM_FLOTA_TOTAL_FECHA}), ${totalFlota} móviles totales. <b>Activos ahora</b> = móviles con una orden Domiciliario abierta en este snapshot; <b>libres</b> = dotación total − activos ahora (estimado, no confirma disponibilidad real del móvil en este instante).</p>
@@ -1244,9 +1302,10 @@ function buildFlotaZonaHtml(zonaRows){
         return `<tr><td style="text-align:left">${zonaLabel(r.zona)}</td><td>${r.flotaTotal}</td><td>${r.activosAhora}</td><td>${r.libres}</td><td>${r.ordenes}</td><td>${r.clientes}</td><td>${r.clientesPorMovilDotacion===Infinity?'—':r.clientesPorMovilDotacion.toFixed(1)}</td></tr>`;
       }).join('')}
     </table>
-    <h3>Propuesta de redistribución por dotación real</h3>
+    ${matrixHtml}
+    <h3>Propuesta de redistribución por dotación real y cercanía entre bases</h3>
     ${sugerencias}
-    <p class="prop-note">Esta propuesta usa la dotación total real por zona (no solo los móviles con orden activa en este momento), por lo que es más confiable que la comparación por comuna de más arriba para decidir traslados entre zonas operativas.</p>
+    <p class="prop-note">Esta propuesta usa la dotación total real por zona y el tiempo de traslado real entre bases zonales (no solo los móviles con orden activa en este momento ni un único punto central), por lo que es más confiable para decidir traslados entre zonas operativas.</p>
   `;
 }
 
@@ -1363,29 +1422,47 @@ async function renderPropDom(){
   if(propDomLoaded) return; propDomLoaded = true;
   const el = document.getElementById('prop-dom-dynamic');
   if(!el || !state) return;
-  el.innerHTML = '<p class="prop-note">Calculando tiempos reales de traslado (OSRM)…</p>';
+  el.innerHTML = '<p class="prop-note">Calculando tiempos reales de traslado desde la base de cada zona (OSRM)…</p>';
   const orders = state.orders.filter(o=>o.tipo==='DOM' && !o.electrodependiente);
   const rows = aggDomByComuna(orders);
-  const osrm = await osrmDurationsFromBase(BASE_CURAUMA, rows.map(r=>({lat:r.lat,lon:r.lon})));
-  let sourceNote;
-  if(osrm.ok){
-    rows.forEach((r,i)=>{ r.travelMin = osrm.durMin[i]; });
-    sourceNote = '🟢 Tiempos reales de ruta por calle (OSRM)';
-  } else {
-    rows.forEach(r=>{ r.travelMin = estTravelMin(haversineKm(BASE_CURAUMA, {lat:r.lat, lon:r.lon})); });
-    sourceNote = '🟡 Sin conexión al servicio de rutas ahora mismo — usando estimación por línea recta (×1.3 / 38 km/h)';
+
+  const byZonaGroup = {};
+  rows.forEach(function(r){
+    const key = (r.zona && DOM_ZONA_BASE[r.zona]) ? r.zona : '__sinbase__';
+    (byZonaGroup[key] = byZonaGroup[key] || []).push(r);
+  });
+  let anyReal = false, anyFail = false;
+  for(const zKey of Object.keys(byZonaGroup)){
+    const group = byZonaGroup[zKey];
+    const base = DOM_ZONA_BASE[zKey] || BASE_CURAUMA;
+    const osrm = await osrmDurationsFromBase(base, group.map(function(r){ return {lat:r.lat, lon:r.lon}; }));
+    if(osrm.ok){
+      group.forEach(function(r,i){ r.travelMin = osrm.durMin[i]; });
+      anyReal = true;
+    } else {
+      group.forEach(function(r){ r.travelMin = estTravelMin(haversineKm(base, {lat:r.lat, lon:r.lon})); });
+      anyFail = true;
+    }
   }
+  const sourceNote = (anyReal && !anyFail)
+    ? '🟢 Tiempos reales de ruta por calle (OSRM), calculados desde la base de cada zona operativa (San Antonio, Curauma/Valparaíso, Costa, Marga Marga, Quillota, Aconcagua) — no desde un único punto central'
+    : anyReal
+      ? '🟡 Tiempos reales de ruta (OSRM) para la mayoría de las zonas; para el resto se usó estimación por línea recta por falla temporal del servicio'
+      : '🟡 Sin conexión al servicio de rutas ahora mismo — usando estimación por línea recta (×1.3 / 38 km/h) desde la base de cada zona operativa';
+
   scoreRows(rows, 'avgEsperaH');
   const top = rows.slice(0,20);
+  const zonaLabelShort = function(z){ return (z||'Sin zona').replace('Zona_','').replace(/_/g,' '); };
+  const travelInfo = await getZonaBaseTravelMatrix();
   el.innerHTML = `
     <p class="prop-note"><b>${sourceNote}</b></p>
     <table class="prop-table prop-table-num">
-      <tr><th>#</th><th>Comuna</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Traslado desde Base</th><th>Puntaje</th></tr>
-      ${top.map((r,i)=>`<tr><td>${i+1}</td><td style="text-align:left">${r.key}</td><td>${r.n}</td><td>${r.clientes}</td><td>${r.avgEsperaH.toFixed(0)} h</td><td>${r.travelMin==null?'—':Math.round(r.travelMin)+' min'}</td><td>${r.score.toFixed(1)}</td></tr>`).join('')}
+      <tr><th>#</th><th>Comuna</th><th>Zona</th><th>Órdenes</th><th>Clientes</th><th>Espera prom.</th><th>Traslado desde base zona</th><th>Puntaje</th></tr>
+      ${top.map((r,i)=>`<tr><td>${i+1}</td><td style="text-align:left">${r.key}</td><td style="text-align:left">${zonaLabelShort(r.zona)}</td><td>${r.n}</td><td>${r.clientes}</td><td>${r.avgEsperaH.toFixed(0)} h</td><td>${r.travelMin==null?'—':Math.round(r.travelMin)+' min'}</td><td>${r.score.toFixed(1)}</td></tr>`).join('')}
     </table>
-    <p class="prop-note">${rows.length} comunas con órdenes Domiciliario abiertas en este snapshot (top ${top.length} mostrado).</p>
+    <p class="prop-note">${rows.length} comunas con órdenes Domiciliario abiertas en este snapshot (top ${top.length} mostrado). El traslado se calcula desde la base real de la zona operativa a la que pertenece cada comuna.</p>
     ${buildRedistribHtml(rows, countDomMovilesPorComuna())}
-    ${buildFlotaZonaHtml(aggDomFlotaPorZona(orders))}
+    ${buildFlotaZonaHtml(aggDomFlotaPorZona(orders), travelInfo)}
     ${buildCapacidadResolucionHtml(aggDomFlotaPorZona(orders))}
   `;
 }
