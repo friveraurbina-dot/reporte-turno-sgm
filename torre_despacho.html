@@ -140,7 +140,11 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
 .order-blip{filter:drop-shadow(0 0 4px rgba(0,0,0,.6)); cursor:pointer;}
 .leaflet-div-icon{background:none !important; border:none !important;}
 
-.sidepanel{border-left:1px solid var(--border); display:flex; flex-direction:column; min-height:0; background:var(--panel);}
+.sidepanel{border-left:1px solid var(--border); display:flex; flex-direction:column; min-height:0; background:var(--panel); overflow-y:auto; overflow-x:hidden;}
+.sidepanel::-webkit-scrollbar{width:8px;}
+.sidepanel::-webkit-scrollbar-track{background:transparent;}
+.sidepanel::-webkit-scrollbar-thumb{background:var(--border); border-radius:4px;}
+.sidepanel::-webkit-scrollbar-thumb:hover{background:var(--cyan);}
 .tabs{display:flex; border-bottom:1px solid var(--border);}
 .tab{flex:1; padding:8px 3px; text-align:center; font-size:8.8px; font-weight:700; color:var(--muted); cursor:pointer; letter-spacing:.01em; border-bottom:2px solid transparent; font-family:var(--mono); text-transform:uppercase; white-space:nowrap;}
 .tab.active{color:var(--cyan); border-bottom-color:var(--cyan);}
