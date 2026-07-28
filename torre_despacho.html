@@ -3209,7 +3209,7 @@ function buildPrioridadReportHTML(){
       for(let i=0;i<zones.length;i++){
         for(let j=i+1;j<zones.length;j++){
           const za=zones[i], zb=zones[j], pa=pos[za], pb=pos[zb];
-          const minDist = radiusFor(za)+radiusFor(zb)+48;
+          const minDist = radiusFor(za)+radiusFor(zb)+58;
           let dx=pb.x-pa.x, dy=pb.y-pa.y, dist=Math.sqrt(dx*dx+dy*dy);
           if(dist<0.5){ dx=(i-j)*0.7; dy=(j-i)*0.7; dist=1; }
           if(dist<minDist){
@@ -3231,11 +3231,12 @@ function buildPrioridadReportHTML(){
       const p1=toXY(s.origen), p2=toXY(s.destino);
       const mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
       const dx=p2.x-p1.x, dy=p2.y-p1.y, norm=Math.sqrt(dx*dx+dy*dy)||1;
-      const nx=-dy/norm, ny=dx/norm, curve=26;
+      const nx=-dy/norm, ny=dx/norm, curve=30;
       const cx=mx+nx*curve, cy=my+ny*curve;
+      const lx=mx+nx*(curve+20), ly=my+ny*(curve+20);
       svg += '<path d="M'+p1.x.toFixed(1)+','+p1.y.toFixed(1)+' Q'+cx.toFixed(1)+','+cy.toFixed(1)+' '+p2.x.toFixed(1)+','+p2.y.toFixed(1)+'" fill="none" stroke="#7a1f14" stroke-width="2.5" marker-end="url(#arrowh)" opacity="0.85"/>';
-      svg += '<rect x="'+(cx-46).toFixed(1)+'" y="'+(cy-16).toFixed(1)+'" width="92" height="14" fill="#f8f6f5" opacity="0.85"/>';
-      svg += '<text x="'+cx.toFixed(1)+'" y="'+(cy-5).toFixed(1)+'" text-anchor="middle" font-size="10" fill="#7a1f14" font-weight="700">+1 móvil · '+(s.minTraslado!=null?s.minTraslado+' min':'—')+'</text>';
+      svg += '<rect x="'+(lx-48).toFixed(1)+'" y="'+(ly-16).toFixed(1)+'" width="96" height="16" fill="#f8f6f5" opacity="0.92" rx="3"/>';
+      svg += '<text x="'+lx.toFixed(1)+'" y="'+(ly-4).toFixed(1)+'" text-anchor="middle" font-size="10" fill="#7a1f14" font-weight="700">+1 móvil · '+(s.minTraslado!=null?s.minTraslado+' min':'—')+'</text>';
     });
     zones.forEach(function(z){
       const p=toXY(z), f=byZona[z];
