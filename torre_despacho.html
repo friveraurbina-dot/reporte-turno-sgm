@@ -1309,6 +1309,18 @@ const DOM_FLOTA_TOTAL = {
 };
 const DOM_FLOTA_TOTAL_FECHA = '27.07.2026';
 
+// Dotación total EN VIVO: cuenta las cuadrillas realmente presentes en el snapshot actual
+// (torre_data.json) agrupadas por zona operativa, en vez de un número fijo de planilla —
+// así "Dotación total" siempre cuadra con los móviles declarados en el tablero.
+function liveDotacionPorZona(){
+  const map = {};
+  Object.keys(DOM_FLOTA_TOTAL).forEach(function(z){ map[z] = 0; });
+  (state.crews||[]).forEach(function(c){
+    if(c.zona && map.hasOwnProperty(c.zona)) map[c.zona]++;
+  });
+  return map;
+}
+
 const DOM_FLOTA_COMUNA_BASE = {
   'Valparaíso': 20,
   'Viña del Mar': 19,
@@ -1324,7 +1336,7 @@ const DOM_FLOTA_COMUNA_BASE = {
   'La Calera': 1
 };
 
-const DOM_ORDENES_PROMEDIO_MOVIL_DIA = 5.5;
+const DOM_ORDENES_PROMEDIO_MOVIL_DIA = 7;
 
 // ---- Jornada laboral de las cuadrillas: 08:00 a 20:00 (12 h/dia) ----
 const WORK_START_H = 8, WORK_END_H = 20, WORK_HOURS_DIA = WORK_END_H - WORK_START_H;
@@ -1375,8 +1387,9 @@ function fmtEtaCorta(eta){
 
 function aggDomFlotaPorZona(orders){
   const map = {};
+  const liveDot = liveDotacionPorZona();
   Object.keys(DOM_FLOTA_TOTAL).forEach(function(z){
-    map[z] = {zona:z, flotaTotal: DOM_FLOTA_TOTAL[z], ordenes:0, clientes:0, activosAhora:0};
+    map[z] = {zona:z, flotaTotal: liveDot[z], ordenes:0, clientes:0, activosAhora:0};
   });
   const crewSeen = {};
   orders.forEach(function(o){
@@ -1437,7 +1450,7 @@ function buildFlotaZonaHtml(zonaRows, travelInfo){
     sugerencias = '<p class="prop-note">Con la dotación total actual no se identifican zonas con móviles libres para reforzar otras zonas.</p>';
   }
 
-  const totalFlota = Object.values(DOM_FLOTA_TOTAL).reduce(function(a,b){return a+b;},0);
+  const totalFlota = zonaRows.reduce(function(a,r){return a+r.flotaTotal;},0);
 
   const keys = travelInfo ? travelInfo.keys : Object.keys(DOM_ZONA_BASE);
   const matrixNote = travelInfo && travelInfo.ok
@@ -1459,7 +1472,7 @@ function buildFlotaZonaHtml(zonaRows, travelInfo){
 
   return `
     <h3>Dotación real de móviles Domiciliario por zona operativa</h3>
-    <p class="prop-note">Fuente: planilla de dotación (Segmento_DOM ${DOM_FLOTA_TOTAL_FECHA}), ${totalFlota} móviles totales. <b>Activos ahora</b> = móviles con una orden Domiciliario abierta en este snapshot; <b>libres</b> = dotación total − activos ahora (estimado, no confirma disponibilidad real del móvil en este instante).</p>
+    <p class="prop-note">Fuente: cuadrillas con zona operativa asignada en el snapshot actual del tablero (torre_data.json), ${totalFlota} móviles totales — este número siempre cuadra con las unidades declaradas en la Torre de Control, no proviene de una planilla fija. <b>Activos ahora</b> = móviles con una orden Domiciliario abierta en este snapshot; <b>libres</b> = dotación total − activos ahora (estimado, no confirma disponibilidad real del móvil en este instante).</p>
     <table class="prop-table prop-table-num">
       <tr><th>Zona operativa</th><th>Dotación total</th><th>Activos ahora</th><th>Libres (estimado)</th><th>Órdenes</th><th>Clientes (backlog)</th><th>Clientes / móvil dotación</th></tr>
       ${zonaRows.map(function(r){
@@ -1492,7 +1505,7 @@ function buildCapacidadResolucionHtml(zonaRows){
   }
 
   const totalBacklog = zonaRows.reduce(function(a,r){return a+r.clientes;},0);
-  const totalFlota = Object.values(DOM_FLOTA_TOTAL).reduce(function(a,b){return a+b;},0);
+  const totalFlota = zonaRows.reduce(function(a,r){return a+r.flotaTotal;},0);
   const totalCapacidadDia = totalFlota * DOM_ORDENES_PROMEDIO_MOVIL_DIA;
   const totalDias = totalCapacidadDia>0 ? (totalBacklog/totalCapacidadDia) : Infinity;
 
@@ -1502,7 +1515,7 @@ function buildCapacidadResolucionHtml(zonaRows){
 
   return `
     <h3>Capacidad de atención y tiempo estimado para resolver el backlog</h3>
-    <p class="prop-note">Supuesto de rendimiento: <b>${DOM_ORDENES_PROMEDIO_MOVIL_DIA} órdenes/móvil/día</b> (promedio 5-6 diarias). <b>Días estimados</b> = backlog actual de clientes ÷ (dotación total × rendimiento diario), asumiendo dedicación completa a resolver pendientes y sin considerar ingreso de nuevas órdenes durante ese período — es un piso, no un compromiso de plazo. <b>⏱ Jornada laboral considerada: 08:00 a 20:00 (12 h/día)</b> — las horas y la fecha estimada de solución solo avanzan dentro de ese horario; fuera de jornada el cálculo salta al inicio del día hábil siguiente.</p>
+    <p class="prop-note">Supuesto de rendimiento: <b>${DOM_ORDENES_PROMEDIO_MOVIL_DIA} órdenes/móvil/día</b>. <b>Dotación total</b> = cuadrillas con zona operativa asignada en el snapshot actual del tablero (en vivo, no una planilla fija). <b>Días estimados</b> = backlog actual de clientes ÷ (dotación total × rendimiento diario), asumiendo dedicación completa a resolver pendientes y sin considerar ingreso de nuevas órdenes durante ese período — es un piso, no un compromiso de plazo. <b>⏱ Jornada laboral considerada: 08:00 a 20:00 (12 h/día)</b> — las horas y la fecha estimada de solución solo avanzan dentro de ese horario; fuera de jornada el cálculo salta al inicio del día hábil siguiente.</p>
     <table class="prop-table prop-table-num">
       <tr><th>Zona operativa</th><th>Dotación total</th><th>Capacidad diaria (órdenes)</th><th>Backlog actual (clientes)</th><th>Días estimados para resolver</th><th>Horas de trabajo necesarias</th><th>Solución estimada</th><th>Estado</th></tr>
       ${rows.map(function(r){
@@ -3176,8 +3189,9 @@ function buildPrioridadReportHTML(){
     if(o.crew){ (crewSeenByZona[z] = crewSeenByZona[z] || {})[o.crew] = true; }
   });
   const ahoraRpt = new Date();
+  const liveDotRpt = liveDotacionPorZona();
   const flotaRows = Object.keys(DOM_FLOTA_TOTAL).map(function(z){
-    const flotaTotal = DOM_FLOTA_TOTAL[z];
+    const flotaTotal = liveDotRpt[z];
     const activos = crewSeenByZona[z] ? Object.keys(crewSeenByZona[z]).length : 0;
     const libres = Math.max(0, flotaTotal-activos);
     const ordenes = ordenesPorZona[z]||0;
@@ -3191,7 +3205,7 @@ function buildPrioridadReportHTML(){
   });
   flotaRows.sort(function(a,b){ const da=a.dias===Infinity?1e9:a.dias, db=b.dias===Infinity?1e9:b.dias; return db-da; });
 
-  const totalFlota = Object.values(DOM_FLOTA_TOTAL).reduce(function(a,b){return a+b;},0);
+  const totalFlota = flotaRows.reduce(function(a,r){return a+r.flotaTotal;},0);
   const totalBacklog = flotaRows.reduce(function(a,r){return a+r.clientes;},0);
   const totalCapDia = totalFlota*DOM_ORDENES_PROMEDIO_MOVIL_DIA;
   const totalDias = totalCapDia>0 ? totalBacklog/totalCapDia : Infinity;
@@ -3453,7 +3467,7 @@ function buildPrioridadReportHTML(){
 +'<p>Ordenado de mayor a menor cantidad de clientes afectados. Espera máx. = la orden más antigua sin resolver en la zona.</p>'
 +'<table><tr><th>Zona operativa</th><th class="num">Órdenes &gt;24h</th><th class="num">Clientes</th><th class="num">Espera máxima</th></tr>'+critHtml+'</table>'
 +'<h2 id="sec-2">2. Capacidad de atención vs. backlog actual</h2>'
-+'<p>Supuesto de rendimiento: <b>5,5 órdenes/móvil/día</b>. "Días estimados" = backlog de clientes de la zona ÷ (dotación total × rendimiento diario), '
++'<p>Supuesto de rendimiento: <b>7 órdenes/móvil/día</b>. Dotación total = cuadrillas con zona operativa asignada en el snapshot actual del tablero (en vivo, no una planilla fija). "Días estimados" = backlog de clientes de la zona ÷ (dotación total × rendimiento diario), '
 +'asumiendo dedicación completa a resolver pendientes — es un piso, no un compromiso de plazo. "Activos ahora" = móviles con una orden domiciliaria abierta '
 +'en este snapshot; "libres" = dotación total − activos ahora (estimado). <b>⏱ Jornada laboral considerada: 08:00 a 20:00 (12 h/día)</b> — "Horas de trabajo necesarias" '
 +'y "Solución estimada" solo avanzan dentro de ese horario; fuera de jornada el cálculo salta al inicio del día hábil siguiente (calculado desde el momento de generación de este informe, '+genTxt+').</p>'
@@ -3481,7 +3495,7 @@ function buildPrioridadReportHTML(){
 +'<div class="note" style="margin-top:10px;"><b>⚠ '+totCritico+' órdenes sin gestión y con más de 24h de espera</b> — cruce de ambas alertas; es la prioridad más urgente para reasignar.</div>'
 +criticoHtml
 +'<h2 id="sec-4">4. Propuesta de redistribución de móviles entre zonas</h2>'
-+'<p>Basada en dotación real por zona (planilla Segmento_DOM) y cercanía estimada entre bases zonales.</p>'
++'<p>Basada en dotación real por zona (cuadrillas en vivo del tablero) y cercanía estimada entre bases zonales.</p>'
 +sugHtml
 +'<p class="note">Propuesta automática como punto de partida — despacho debe confirmar disponibilidad real del móvil antes de mover unidades.</p>'
 +'<h2 id="sec-cierre">Cierre</h2>'
@@ -3500,7 +3514,7 @@ function buildPrioridadReportHTML(){
 +movilesHtml
 +'</div></div>'
 +'<div class="pie-final">Generado automáticamente desde Torre de Control Despacho Distribución (torre_data.json, snapshot '+snapTxt+'). '
-+'Excluye órdenes cerradas/completadas. Dotación de móviles según planilla Segmento_DOM (27.07.2026).</div>'
++'Excluye órdenes cerradas/completadas. Dotación de móviles en vivo según cuadrillas registradas en el snapshot actual del tablero.</div>'
 +'</footer></div></body></html>';
 }
 
