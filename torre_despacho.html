@@ -3180,40 +3180,67 @@ function buildPrioridadReportHTML(){
 
   // ---- mapa SVG de la propuesta de redistribución ----
   function buildRedistribucionMapSVG(){
-    const W=680, H=440, PAD=64;
-    const lats = Object.keys(DOM_ZONA_BASE).map(function(z){return DOM_ZONA_BASE[z].lat;});
-    const lons = Object.keys(DOM_ZONA_BASE).map(function(z){return DOM_ZONA_BASE[z].lon;});
+    const W=700, H=480, PAD=80;
+    const zones = Object.keys(DOM_ZONA_BASE);
+    const lats = zones.map(function(z){return DOM_ZONA_BASE[z].lat;});
+    const lons = zones.map(function(z){return DOM_ZONA_BASE[z].lon;});
     const latMin=Math.min.apply(null,lats), latMax=Math.max.apply(null,lats);
     const lonMin=Math.min.apply(null,lons), lonMax=Math.max.apply(null,lons);
-    function toXY(zona){
-      const b = DOM_ZONA_BASE[zona];
-      if(!b) return {x:W/2,y:H/2};
-      const x = PAD + (b.lon-lonMin)/((lonMax-lonMin)||1) * (W-2*PAD);
-      const y = PAD + (latMax-b.lat)/((latMax-latMin)||1) * (H-2*PAD);
-      return {x:x,y:y};
-    }
+    const byZona = {};
+    flotaRows.forEach(function(f){ byZona[f.zona]=f; });
+    function radiusFor(z){ const f=byZona[z]; return f ? Math.max(11, Math.min(30, 9+f.flotaTotal*0.75)) : 13; }
     function urgColor(score){
       if(score>=0.66) return '#c0392b';
       if(score>=0.33) return '#e08a00';
       return '#2e7d32';
     }
-    const byZona = {};
-    flotaRows.forEach(function(f){ byZona[f.zona]=f; });
-    let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="auto" role="img" aria-label="Mapa de redistribución de móviles" style="max-width:620px; display:block; margin:16px auto; background:#f8f6f5; border-radius:8px;">';
+    // posiciones iniciales segun coordenadas geograficas reales de las bases
+    const pos = {};
+    zones.forEach(function(z){
+      const b = DOM_ZONA_BASE[z];
+      pos[z] = {
+        x: PAD + (b.lon-lonMin)/((lonMax-lonMin)||1) * (W-2*PAD),
+        y: PAD + (latMax-b.lat)/((latMax-latMin)||1) * (H-2*PAD)
+      };
+    });
+    // separacion anti-solape: mantiene la disposicion geografica pero evita que las zonas
+    // costeras (Costa / Valparaíso / Marga Marga, muy cercanas entre sí) queden encimadas
+    for(let iter=0; iter<80; iter++){
+      for(let i=0;i<zones.length;i++){
+        for(let j=i+1;j<zones.length;j++){
+          const za=zones[i], zb=zones[j], pa=pos[za], pb=pos[zb];
+          const minDist = radiusFor(za)+radiusFor(zb)+48;
+          let dx=pb.x-pa.x, dy=pb.y-pa.y, dist=Math.sqrt(dx*dx+dy*dy);
+          if(dist<0.5){ dx=(i-j)*0.7; dy=(j-i)*0.7; dist=1; }
+          if(dist<minDist){
+            const push=(minDist-dist)/2, ux=dx/dist, uy=dy/dist;
+            pa.x-=ux*push; pa.y-=uy*push; pb.x+=ux*push; pb.y+=uy*push;
+          }
+        }
+      }
+    }
+    zones.forEach(function(z){
+      const r=radiusFor(z);
+      pos[z].x = Math.max(r+34, Math.min(W-r-34, pos[z].x));
+      pos[z].y = Math.max(r+26, Math.min(H-r-26, pos[z].y));
+    });
+    function toXY(zona){ return pos[zona] || {x:W/2,y:H/2}; }
+    let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="auto" role="img" aria-label="Mapa de redistribución de móviles" style="max-width:640px; display:block; margin:16px auto; background:#f8f6f5; border-radius:8px;">';
     svg += '<defs><marker id="arrowh" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7a1f14"/></marker></defs>';
     sugerencias.forEach(function(s){
       const p1=toXY(s.origen), p2=toXY(s.destino);
       const mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
       const dx=p2.x-p1.x, dy=p2.y-p1.y, norm=Math.sqrt(dx*dx+dy*dy)||1;
-      const nx=-dy/norm, ny=dx/norm, curve=24;
+      const nx=-dy/norm, ny=dx/norm, curve=26;
       const cx=mx+nx*curve, cy=my+ny*curve;
       svg += '<path d="M'+p1.x.toFixed(1)+','+p1.y.toFixed(1)+' Q'+cx.toFixed(1)+','+cy.toFixed(1)+' '+p2.x.toFixed(1)+','+p2.y.toFixed(1)+'" fill="none" stroke="#7a1f14" stroke-width="2.5" marker-end="url(#arrowh)" opacity="0.85"/>';
-      svg += '<text x="'+cx.toFixed(1)+'" y="'+(cy-3).toFixed(1)+'" text-anchor="middle" font-size="10" fill="#7a1f14" font-weight="700">+1 móvil · '+(s.minTraslado!=null?s.minTraslado+' min':'—')+'</text>';
+      svg += '<rect x="'+(cx-46).toFixed(1)+'" y="'+(cy-16).toFixed(1)+'" width="92" height="14" fill="#f8f6f5" opacity="0.85"/>';
+      svg += '<text x="'+cx.toFixed(1)+'" y="'+(cy-5).toFixed(1)+'" text-anchor="middle" font-size="10" fill="#7a1f14" font-weight="700">+1 móvil · '+(s.minTraslado!=null?s.minTraslado+' min':'—')+'</text>';
     });
-    Object.keys(DOM_ZONA_BASE).forEach(function(z){
+    zones.forEach(function(z){
       const p=toXY(z), f=byZona[z];
       const urg = urgencyByZona[z] ? urgencyByZona[z].score : 0;
-      const r = f ? Math.max(11, Math.min(30, 9+f.flotaTotal*0.75)) : 13;
+      const r = radiusFor(z);
       svg += '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="'+urgColor(urg)+'" fill-opacity="0.88" stroke="#fff" stroke-width="2.5"/>';
       svg += '<text x="'+p.x.toFixed(1)+'" y="'+(p.y-r-7).toFixed(1)+'" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1c1c1c">'+zl(z)+'</text>';
       if(f){
