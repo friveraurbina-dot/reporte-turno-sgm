@@ -1313,10 +1313,16 @@ const DOM_FLOTA_TOTAL_FECHA = '27.07.2026';
 // (torre_data.json) agrupadas por zona operativa, en vez de un número fijo de planilla —
 // así "Dotación total" siempre cuadra con los móviles declarados en el tablero.
 function liveDotacionPorZona(){
+  // Misma definición que el panel "Unidades por zona (DOM)": cuadrillas que tienen
+  // AL MENOS 1 orden domiciliaria (DOM, no electrodependiente) asignada en este snapshot —
+  // así ambos cuadros del tablero muestran siempre el mismo número de móviles.
   const map = {};
   Object.keys(DOM_FLOTA_TOTAL).forEach(function(z){ map[z] = 0; });
+  const ordersDom = (state.orders||[]).filter(function(o){ return o.tipo==='DOM' && !o.electrodependiente; });
+  const crewIdsDom = {};
+  ordersDom.forEach(function(o){ if(o.crew) crewIdsDom[o.crew] = true; });
   (state.crews||[]).forEach(function(c){
-    if(c.zona && map.hasOwnProperty(c.zona)) map[c.zona]++;
+    if(crewIdsDom[c.id] && c.zona && map.hasOwnProperty(c.zona)) map[c.zona]++;
   });
   return map;
 }
@@ -1472,7 +1478,7 @@ function buildFlotaZonaHtml(zonaRows, travelInfo){
 
   return `
     <h3>Dotación real de móviles Domiciliario por zona operativa</h3>
-    <p class="prop-note">Fuente: cuadrillas con zona operativa asignada en el snapshot actual del tablero (torre_data.json), ${totalFlota} móviles totales — este número siempre cuadra con las unidades declaradas en la Torre de Control, no proviene de una planilla fija. <b>Activos ahora</b> = móviles con una orden Domiciliario abierta en este snapshot; <b>libres</b> = dotación total − activos ahora (estimado, no confirma disponibilidad real del móvil en este instante).</p>
+    <p class="prop-note">Fuente: cuadrillas con al menos 1 orden domiciliaria (DOM) asignada en el snapshot actual del tablero (torre_data.json), ${totalFlota} móviles totales — mismo criterio y mismo número que el panel "Unidades por zona (DOM)" del tablero, no proviene de una planilla fija. <b>Activos ahora</b> = de esos móviles, los que tienen la orden en la zona (despachada/en curso); <b>libres</b> = dotación total − activos ahora (estimado, no confirma disponibilidad real del móvil en este instante).</p>
     <table class="prop-table prop-table-num">
       <tr><th>Zona operativa</th><th>Dotación total</th><th>Activos ahora</th><th>Libres (estimado)</th><th>Órdenes</th><th>Clientes (backlog)</th><th>Clientes / móvil dotación</th></tr>
       ${zonaRows.map(function(r){
@@ -1515,7 +1521,7 @@ function buildCapacidadResolucionHtml(zonaRows){
 
   return `
     <h3>Capacidad de atención y tiempo estimado para resolver el backlog</h3>
-    <p class="prop-note">Supuesto de rendimiento: <b>${DOM_ORDENES_PROMEDIO_MOVIL_DIA} órdenes/móvil/día</b>. <b>Dotación total</b> = cuadrillas con zona operativa asignada en el snapshot actual del tablero (en vivo, no una planilla fija). <b>Días estimados</b> = backlog actual de clientes ÷ (dotación total × rendimiento diario), asumiendo dedicación completa a resolver pendientes y sin considerar ingreso de nuevas órdenes durante ese período — es un piso, no un compromiso de plazo. <b>⏱ Jornada laboral considerada: 08:00 a 20:00 (12 h/día)</b> — las horas y la fecha estimada de solución solo avanzan dentro de ese horario; fuera de jornada el cálculo salta al inicio del día hábil siguiente.</p>
+    <p class="prop-note">Supuesto de rendimiento: <b>${DOM_ORDENES_PROMEDIO_MOVIL_DIA} órdenes/móvil/día</b>. <b>Dotación total</b> = cuadrillas con al menos 1 orden domiciliaria (DOM) asignada en el snapshot actual del tablero — mismo número que el panel "Unidades por zona (DOM)" (en vivo, no una planilla fija). <b>Días estimados</b> = backlog actual de clientes ÷ (dotación total × rendimiento diario), asumiendo dedicación completa a resolver pendientes y sin considerar ingreso de nuevas órdenes durante ese período — es un piso, no un compromiso de plazo. <b>⏱ Jornada laboral considerada: 08:00 a 20:00 (12 h/día)</b> — las horas y la fecha estimada de solución solo avanzan dentro de ese horario; fuera de jornada el cálculo salta al inicio del día hábil siguiente.</p>
     <table class="prop-table prop-table-num">
       <tr><th>Zona operativa</th><th>Dotación total</th><th>Capacidad diaria (órdenes)</th><th>Backlog actual (clientes)</th><th>Días estimados para resolver</th><th>Horas de trabajo necesarias</th><th>Solución estimada</th><th>Estado</th></tr>
       ${rows.map(function(r){
@@ -3467,7 +3473,7 @@ function buildPrioridadReportHTML(){
 +'<p>Ordenado de mayor a menor cantidad de clientes afectados. Espera máx. = la orden más antigua sin resolver en la zona.</p>'
 +'<table><tr><th>Zona operativa</th><th class="num">Órdenes &gt;24h</th><th class="num">Clientes</th><th class="num">Espera máxima</th></tr>'+critHtml+'</table>'
 +'<h2 id="sec-2">2. Capacidad de atención vs. backlog actual</h2>'
-+'<p>Supuesto de rendimiento: <b>7 órdenes/móvil/día</b>. Dotación total = cuadrillas con zona operativa asignada en el snapshot actual del tablero (en vivo, no una planilla fija). "Días estimados" = backlog de clientes de la zona ÷ (dotación total × rendimiento diario), '
++'<p>Supuesto de rendimiento: <b>7 órdenes/móvil/día</b>. Dotación total = cuadrillas con al menos 1 orden domiciliaria (DOM) asignada en el snapshot actual del tablero — mismo número que el panel "Unidades por zona (DOM)" (en vivo, no una planilla fija). "Días estimados" = backlog de clientes de la zona ÷ (dotación total × rendimiento diario), '
 +'asumiendo dedicación completa a resolver pendientes — es un piso, no un compromiso de plazo. "Activos ahora" = móviles con una orden domiciliaria abierta '
 +'en este snapshot; "libres" = dotación total − activos ahora (estimado). <b>⏱ Jornada laboral considerada: 08:00 a 20:00 (12 h/día)</b> — "Horas de trabajo necesarias" '
 +'y "Solución estimada" solo avanzan dentro de ese horario; fuera de jornada el cálculo salta al inicio del día hábil siguiente (calculado desde el momento de generación de este informe, '+genTxt+').</p>'
