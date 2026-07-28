@@ -342,8 +342,11 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
         <span class="eyebrow"><span class="live-dot"></span>Chilquinta Distribución <span class="snapshot-badge" id="snapshot-badge"></span></span>
       </div>
     </div>
-    <div style="display:flex; align-items:center; gap:14px;">
-      <select id="zona-select" class="zona-select"></select>
+    <div style="display:flex; align-items:flex-start; gap:14px;">
+      <div class="tipo-orden-wrap">
+        <span class="topbar-label">Zona</span>
+        <select id="zona-select" class="zona-select"></select>
+      </div>
       <div class="tipo-orden-wrap">
         <span class="topbar-label">Tipo de Orden</span>
         <select id="tipo-select" class="zona-select">
@@ -353,16 +356,19 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
           <option value="ELEC">❤ Electrodependiente</option>
         </select>
       </div>
-      <select id="incident-select" class="zona-select">
-        <option value="ALL">Confirmada + Predicha</option>
-        <option value="confirmed">Solo Confirmadas</option>
-        <option value="predicted">Solo Predichas</option>
-      </select>
+      <div class="tipo-orden-wrap">
+        <span class="topbar-label">Estado del incidente</span>
+        <select id="incident-select" class="zona-select">
+          <option value="ALL">Confirmada + Predicha</option>
+          <option value="confirmed">Solo Confirmadas</option>
+          <option value="predicted">Solo Predichas</option>
+        </select>
+      </div>
       <div class="tipo-orden-wrap">
         <span class="topbar-label">Vista del mapa</span>
         <button id="heatmap-toggle" type="button" class="zona-select heat-toggle active">🔥 Mapa de calor: ON</button>
       </div>
-      <div class="hud-strip" id="hud-bar"></div>
+      <div class="hud-strip" id="hud-bar" style="margin-top:16px;"></div>
     </div>
   </div>
 
@@ -2193,13 +2199,33 @@ function renderMatrix(){
   ordersDom.forEach(o=>{const z=o.zona||'Sin zona'; zo[z]=(zo[z]||0)+1;});
   const zonas=Array.from(new Set([...Object.keys(zc),...Object.keys(zo)])).sort();
   const tUni=zonas.reduce((a,z)=>a+(zc[z]||0),0), tOrdZ=zonas.reduce((a,z)=>a+(zo[z]||0),0);
+  const crewOrdCount={};
+  ordersDom.forEach(o=>{ if(o.crew) crewOrdCount[o.crew]=(crewOrdCount[o.crew]||0)+1; });
+  const crewsByZona={};
+  crewsDom.forEach(c=>{ const z=c.zona||'Sin zona'; (crewsByZona[z]=crewsByZona[z]||[]).push(c); });
+  const movilesListHtml = crewsDom.length ? `
+    <details style="margin-top:10px;">
+      <summary style="cursor:pointer; font-weight:700; font-size:11px; color:var(--accent, #d33);">🚚 Ver listado de móviles por zona (${crewsDom.length} móviles)</summary>
+      <div class="note" style="margin:6px 0 8px;">Cuadrillas que hoy tienen al menos una orden domiciliaria (DOM) asignada, agrupadas por su zona operativa.</div>
+      ${zonas.map(z=>{
+        const list=(crewsByZona[z]||[]).slice().sort((a,b)=>(a.label||'').localeCompare(b.label||''));
+        if(!list.length) return '';
+        return `
+        <div style="font-weight:700; margin-top:8px; margin-bottom:4px; font-size:11px;">${zonaLabel(z)} <span style="font-weight:400; color:var(--muted);">(${list.length} móviles)</span></div>
+        <table class="matrix">
+          <tr><th style="text-align:left;">Móvil</th><th style="text-align:left;">Estado</th><th>Órdenes DOM</th></tr>
+          ${list.map(c=>`<tr><td style="text-align:left;">${escHtml(c.label||c.id)}</td><td style="text-align:left;">${STATUS_LABEL[c.status]||c.status||'—'}</td><td class="num">${crewOrdCount[c.id]||0}</td></tr>`).join('')}
+        </table>`;
+      }).join('')}
+    </details>` : '';
   const zonaHtml=`
     <table class="matrix">
       <tr><th style="text-align:left;">Zona</th><th>🚛 Unidades</th><th>📋 Órdenes</th></tr>
       ${zonas.length ? zonas.map(z=>`<tr><td class="rowlabel">${zonaLabel(z)}</td>${cell(zc[z]||0)}${cell(zo[z]||0)}</tr>`).join('') : '<tr><td colspan="3" class="empty">SIN DATOS</td></tr>'}
       <tr class="total"><td class="rowlabel">Total</td>${cell(tUni)}${cell(tOrdZ)}</tr>
     </table>
-    <div class="note" style="margin-top:8px;">Unidades (cuadrillas) asignadas a <b>órdenes domiciliarias (DOM)</b>, por zona.</div>
+    <div class="note" style="margin-top:8px;"><b>Unidades</b> = móviles (cuadrillas) que tienen <b>al menos 1 orden domiciliaria (DOM) asignada</b> en este snapshot — no es la dotación total disponible, sino los móviles con carga activa ahora mismo. El dato se obtiene cruzando la cuadrilla de cada orden DOM abierta.</div>
+    ${movilesListHtml}
     ${buildDomCriticas24hHtml()}`;
 
   // ---- Estado por zona (segun Tipo de Orden seleccionado arriba) ----
@@ -2207,18 +2233,31 @@ function renderMatrix(){
   const etOrders = filterByTipoOrden(state.orders).filter(function(o){ return o.priority!==4; });
   const ze={};
   const incQ = o => estadoMetric==='cli' ? (o.clientes||0) : 1;
-  etOrders.forEach(o=>{const z=o.zona||'Sin zona'; if(!ze[z]) ze[z]={sa:0,ruta:0,sitio:0,tot:0}; const q=incQ(o); ze[z].tot+=q;
+  const GESTION_ESTADOS = {despachado:1, en_camino:1, llego:1};
+  function tieneGestion(o){ return GESTION_ESTADOS[o.estado]===1; }
+  etOrders.forEach(o=>{const z=o.zona||'Sin zona'; if(!ze[z]) ze[z]={sa:0,ruta:0,sitio:0,tot:0,ges:0,singes:0}; const q=incQ(o); ze[z].tot+=q;
     if(o.unassigned||o.estado==='nuevo') ze[z].sa+=q;
     else if(o.estado==='despachado'||o.estado==='en_camino') ze[z].ruta+=q;
-    else ze[z].sitio+=q;});
+    else ze[z].sitio+=q;
+    if(tieneGestion(o)) ze[z].ges+=q; else ze[z].singes+=q;});
   const zEst=Object.keys(ze).sort();
   const tSa=zEst.reduce((a,z)=>a+ze[z].sa,0), tRu=zEst.reduce((a,z)=>a+ze[z].ruta,0), tSi=zEst.reduce((a,z)=>a+ze[z].sitio,0), tTo=zEst.reduce((a,z)=>a+ze[z].tot,0);
+  const tGes=zEst.reduce((a,z)=>a+ze[z].ges,0), tSinGes=zEst.reduce((a,z)=>a+ze[z].singes,0);
   const metLbl = estadoMetric==='cli' ? 'cantidad de clientes afectados' : 'cantidad de órdenes';
   const totColLbl = estadoMetric==='cli' ? '👥 Clientes' : '📋 Órdenes';
   const metPills=`<div class="est-tipo est-metric">
       <button class="stab mmtab ${estadoMetric==='ord'?'active':''}" data-m="ord">📋 N° de órdenes</button>
       <button class="stab mmtab ${estadoMetric==='cli'?'active':''}" data-m="cli">👥 N° de clientes</button>
     </div>`;
+  const pctGes = tTo>0 ? Math.round(100*tGes/tTo) : 0;
+  const gestionHtml = `
+    <div class="section-label" style="margin-top:14px;">Gestión de la orden por zona</div>
+    <div class="note" style="margin:4px 0 8px;"><b>Con gestión</b>: despachada, en camino o en sitio (llegó) — la cuadrilla ya está actuando sobre la orden. <b>Sin gestión</b>: nueva, suspendida o en progreso — la orden aún no tiene una acción de terreno en curso.</div>
+    <table class="matrix">
+      <tr><th style="text-align:left;">Zona</th><th>✅ Con gestión</th><th>⛔ Sin gestión</th><th>% con gestión</th></tr>
+      ${zEst.length ? zEst.map(z=>{ const t=ze[z].ges+ze[z].singes; const pct=t>0?Math.round(100*ze[z].ges/t):0; return `<tr><td class="rowlabel">${zonaLabel(z)}</td>${cell(ze[z].ges)}${cell(ze[z].singes)}<td class="num">${pct}%</td></tr>`; }).join('') : '<tr><td colspan="4" class="empty">SIN DATOS</td></tr>'}
+      <tr class="total"><td class="rowlabel">Total</td>${cell(tGes)}${cell(tSinGes)}<td class="num">${pctGes}%</td></tr>
+    </table>`;
   const estadoHtml=`
     <div class="section-label">Estado por zona</div>
     ${metPills}
@@ -2227,7 +2266,8 @@ function renderMatrix(){
       ${zEst.length ? zEst.map(z=>`<tr><td class="rowlabel">${zonaLabel(z)}</td>${cell(ze[z].sa)}${cell(ze[z].ruta)}${cell(ze[z].sitio)}${cell(ze[z].tot)}</tr>`).join('') : '<tr><td colspan="5" class="empty">SIN DATOS</td></tr>'}
       <tr class="total"><td class="rowlabel">Total</td>${cell(tSa)}${cell(tRu)}${cell(tSi)}${cell(tTo)}</tr>
     </table>
-    <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · mostrando <b>${metLbl}</b> · <b>S/asig</b>: sin cuadrilla · <b>En ruta</b>: despachada / en camino · <b>En sitio</b>: cuadrilla trabajando · excluye ordenes cerradas/completadas.</div>`;
+    <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · mostrando <b>${metLbl}</b> · <b>S/asig</b>: sin cuadrilla · <b>En ruta</b>: despachada / en camino · <b>En sitio</b>: cuadrilla trabajando · excluye ordenes cerradas/completadas.</div>
+    ${gestionHtml}`;
 
   // ---- Tiempo por zona ----
   function ageLabel(hoursFloat){
@@ -2246,6 +2286,40 @@ function renderMatrix(){
   });
   const tTotOrd = tRows.reduce((s,r)=>s+r.ord,0), tTotCli = tRows.reduce((s,r)=>s+r.cli,0);
   const allOldest = tOrders.slice().sort((a,b)=>b._h-a._h)[0];
+
+  // ---- Antigüedad por tramos, por zona ----
+  function ageBucket(h){ if(h<6) return '0-6'; if(h<15) return '6-15'; if(h<24) return '15-24'; if(h<48) return '24-48'; return '48+'; }
+  const AGE_BUCKETS=['0-6','6-15','15-24','24-48','48+'];
+  const AGE_LABELS={'0-6':'0–6h','6-15':'6–15h','15-24':'15–24h','24-48':'24–48h','48+':'+48h'};
+  const ageMatrix={};
+  tZonas.forEach(z=>{ ageMatrix[z]={'0-6':0,'6-15':0,'15-24':0,'24-48':0,'48+':0}; });
+  tOrders.forEach(o=>{ const b=ageBucket(o._h); if(ageMatrix[o._zona]) ageMatrix[o._zona][b]++; });
+  const ageTotals={'0-6':0,'6-15':0,'15-24':0,'24-48':0,'48+':0};
+  tZonas.forEach(z=> AGE_BUCKETS.forEach(b=> ageTotals[b]+=ageMatrix[z][b]));
+  const ageTramoHtml = tZonas.length ? `
+    <div class="section-label" style="margin-top:14px;">Antigüedad por tramos, por zona</div>
+    <div class="note" style="margin:4px 0 8px;">Cuántas órdenes pendientes hay en cada tramo de espera, por zona. Ayuda a ver si el problema es volumen reciente o backlog acumulado.</div>
+    <table class="matrix">
+      <tr><th style="text-align:left;">Zona</th>${AGE_BUCKETS.map(b=>`<th>${AGE_LABELS[b]}</th>`).join('')}</tr>
+      ${tZonas.map(z=>`<tr><td class="rowlabel">${zonaLabel(z)}</td>${AGE_BUCKETS.map(b=>{ const v=ageMatrix[z][b]; const crit=(b==='24-48'||b==='48+') && v>0; return `<td class="num"${crit?' style="color:var(--red,#d33); font-weight:700;"':''}>${v}</td>`; }).join('')}</tr>`).join('')}
+      <tr class="total"><td class="rowlabel">Total</td>${AGE_BUCKETS.map(b=>cell(ageTotals[b])).join('')}</tr>
+    </table>` : '';
+
+  // ---- Cruce: sin gestion + antigua (>=24h) ----
+  const criticoSinGestion={};
+  tZonas.forEach(z=> criticoSinGestion[z]=0);
+  tOrders.forEach(o=>{
+    const sinGes = !(o.estado==='despachado'||o.estado==='en_camino'||o.estado==='llego');
+    if(sinGes && o._h>=24 && criticoSinGestion[o._zona]!=null) criticoSinGestion[o._zona]++;
+  });
+  const critRows = tZonas.map(z=>({z, n:criticoSinGestion[z]})).filter(r=>r.n>0).sort((a,b)=>b.n-a.n);
+  const totalCritSinGes = critRows.reduce((s,r)=>s+r.n,0);
+  const sinGestionCriticaHtml = `
+    <div class="section-label" style="margin-top:14px;">⚠ Sin gestión y con más de 24h de espera</div>
+    <div class="note" style="margin:4px 0 8px;">Cruce de las dos alertas: órdenes que llevan &gt;24h esperando <b>y</b> que además no tienen gestión de terreno en curso (nueva / suspendida / en progreso). Estas son la prioridad más urgente para reasignar.</div>
+    ${critRows.length ? `<table class="matrix"><tr><th style="text-align:left;">Zona</th><th>Órdenes</th></tr>${critRows.map(r=>`<tr><td class="rowlabel">${zonaLabel(r.z)}</td>${cell(r.n)}</tr>`).join('')}<tr class="total"><td class="rowlabel">Total</td>${cell(totalCritSinGes)}</tr></table>` : '<div class="note" style="border-left:3px solid #2E7D32; padding-left:8px;">✅ Sin órdenes en esta condición.</div>'}
+  `;
+
   const tiempoHtml = `
     <div class="section-label" style="margin-top:14px;">Tiempo por zona</div>
     <table class="matrix">
@@ -2254,6 +2328,8 @@ function renderMatrix(){
       <tr class="total"><td class="rowlabel">Total</td>${cell(tTotOrd)}${cell(tTotCli)}<td class="num">—</td><td class="num">${allOldest?ageLabel(allOldest._h):'—'}</td></tr>
     </table>
     <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · Espera = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}) · excluye ordenes cerradas/completadas.${allOldest?` Orden más antigua (pendiente): <b>#${escHtml(allOldest.id)}</b> (${ageLabel(allOldest._h)}, ${zonaLabel(allOldest.zona)}).`:''}</div>
+    ${ageTramoHtml}
+    ${sinGestionCriticaHtml}
   `;
   const estadoTabHtml = buildDomCriticas24hHtml() + estadoHtml;
   const tiempoTabHtml = tiempoHtml;
@@ -2969,6 +3045,71 @@ function buildPrioridadReportHTML(){
   const totalCritCli = critRows.reduce(function(s,r){ return s+r.clientes; }, 0);
   const top10Groups = domTop10PorZona();
 
+  // ---- gestion + antiguedad por zona (sobre domOpen) ----
+  const GESTION_ESTADOS_RPT = {despachado:1, en_camino:1, llego:1};
+  function ageBucketRpt(h){ if(h<6) return '0-6'; if(h<15) return '6-15'; if(h<24) return '15-24'; if(h<48) return '24-48'; return '48+'; }
+  const AGE_BUCKETS_RPT=['0-6','6-15','15-24','24-48','48+'];
+  const AGE_LABELS_RPT={'0-6':'0–6h','6-15':'6–15h','15-24':'15–24h','24-48':'24–48h','48+':'+48h'};
+  const gestZonas = Array.from(new Set(domOpen.map(function(o){return o.zona||'Sin zona';}))).sort();
+  const gestByZona = {};
+  gestZonas.forEach(function(z){ gestByZona[z] = {ges:0, singes:0, ageM:{'0-6':0,'6-15':0,'15-24':0,'24-48':0,'48+':0}, critico:0}; });
+  domOpen.forEach(function(o){
+    const z = o.zona||'Sin zona';
+    const h = esperaMinutes(o.espera)/60;
+    const tieneGes = GESTION_ESTADOS_RPT[o.estado]===1;
+    if(tieneGes) gestByZona[z].ges++; else gestByZona[z].singes++;
+    const b = ageBucketRpt(h);
+    gestByZona[z].ageM[b]++;
+    if(!tieneGes && h>=24) gestByZona[z].critico++;
+  });
+  const totGes = gestZonas.reduce(function(a,z){return a+gestByZona[z].ges;},0);
+  const totSinGes = gestZonas.reduce(function(a,z){return a+gestByZona[z].singes;},0);
+  const totCritico = gestZonas.reduce(function(a,z){return a+gestByZona[z].critico;},0);
+  const ageTotalsRpt = {'0-6':0,'6-15':0,'15-24':0,'24-48':0,'48+':0};
+  gestZonas.forEach(function(z){ AGE_BUCKETS_RPT.forEach(function(b){ ageTotalsRpt[b]+=gestByZona[z].ageM[b]; }); });
+
+  let gestHtml = '';
+  gestZonas.forEach(function(z){
+    const g = gestByZona[z]; const t = g.ges+g.singes; const pct = t>0?Math.round(100*g.ges/t):0;
+    gestHtml += '<tr><td>'+zl(z)+'</td><td class="num">'+g.ges+'</td><td class="num">'+g.singes+'</td><td class="num">'+pct+'%</td></tr>';
+  });
+  const pctGesTot = (totGes+totSinGes)>0 ? Math.round(100*totGes/(totGes+totSinGes)) : 0;
+
+  let ageHtml = '';
+  gestZonas.forEach(function(z){
+    const m = gestByZona[z].ageM;
+    ageHtml += '<tr><td>'+zl(z)+'</td>'+AGE_BUCKETS_RPT.map(function(b){
+      const v=m[b]; const crit=(b==='24-48'||b==='48+') && v>0;
+      return '<td class="num"'+(crit?' style="color:#c0392b;font-weight:700;"':'')+'>'+v+'</td>';
+    }).join('')+'</tr>';
+  });
+
+  const criticoRows = gestZonas.map(function(z){return {zona:z, n:gestByZona[z].critico};}).filter(function(r){return r.n>0;}).sort(function(a,b){return b.n-a.n;});
+  let criticoHtml = '';
+  if(criticoRows.length){
+    criticoHtml = '<table><tr><th>Zona operativa</th><th class="num">Órdenes</th></tr>'
+      + criticoRows.map(function(r){ return '<tr><td>'+zl(r.zona)+'</td><td class="num">'+r.n+'</td></tr>'; }).join('')
+      + '<tr style="font-weight:700;"><td>Total</td><td class="num">'+totCritico+'</td></tr></table>';
+  } else {
+    criticoHtml = '<p class="note" style="border-left-color:#2e7d32;">Sin órdenes en esta condición.</p>';
+  }
+
+  // ---- moviles por zona (dom) ----
+  const crewOrdCountRpt = {};
+  domOpen.forEach(function(o){ if(o.crew) crewOrdCountRpt[o.crew] = (crewOrdCountRpt[o.crew]||0)+1; });
+  const crewIdsDomRpt = new Set(domOpen.filter(function(o){return o.crew;}).map(function(o){return o.crew;}));
+  const crewsDomRpt = (state.crews||[]).filter(function(c){return crewIdsDomRpt.has(c.id);});
+  const crewsByZonaRpt = {};
+  crewsDomRpt.forEach(function(c){ const z=c.zona||'Sin zona'; (crewsByZonaRpt[z]=crewsByZonaRpt[z]||[]).push(c); });
+  let movilesHtml = '';
+  Object.keys(crewsByZonaRpt).sort().forEach(function(z){
+    const list = crewsByZonaRpt[z].slice().sort(function(a,b){return (a.label||'').localeCompare(b.label||'');});
+    movilesHtml += '<h4>'+zl(z)+' <span class="muted">('+list.length+' móviles)</span></h4>'
+      + '<table class="data"><tr><th>Móvil</th><th>Estado</th><th class="num">Órdenes DOM</th></tr>'
+      + list.map(function(c){ return '<tr><td>'+(c.label||c.id)+'</td><td>'+(EST_LBL[c.status]||c.status||'—')+'</td><td class="num">'+(crewOrdCountRpt[c.id]||0)+'</td></tr>'; }).join('')
+      + '</table>';
+  });
+
   // ---- capacidad / backlog por zona ----
   const crewSeenByZona = {}, ordenesPorZona = {}, clientesPorZona = {};
   domOpen.forEach(function(o){
@@ -3129,7 +3270,19 @@ function buildPrioridadReportHTML(){
 +'pero la sección 1 muestra órdenes con hasta '+(critRows.length?fmtH(maxHCrit):'—')+' de espera real. Esto indica que el cuello de botella no es solo la '
 +'dotación total, sino su distribución/priorización dentro de la zona (móviles concentrados en órdenes recientes o de menor prioridad mientras las más antiguas '
 +'quedan atrás). Se recomienda revisar también el criterio de despacho interno, no solo el número de móviles.</div>'
-+'<h2>3. Propuesta de redistribución de móviles entre zonas</h2>'
++'<h2>3. Gestión y antigüedad de las órdenes, por zona</h2>'
++'<p><b>Con gestión</b>: la orden está despachada, en camino o en sitio (llegó) — la cuadrilla ya está actuando sobre ella. '
++'<b>Sin gestión</b>: nueva, suspendida o en progreso — la orden aún no tiene una acción de terreno en curso.</p>'
++'<table><tr><th>Zona operativa</th><th class="num">✅ Con gestión</th><th class="num">⛔ Sin gestión</th><th class="num">% con gestión</th></tr>'
++gestHtml
++'<tr style="font-weight:700;"><td>Total región</td><td class="num">'+totGes+'</td><td class="num">'+totSinGes+'</td><td class="num">'+pctGesTot+'%</td></tr></table>'
++'<p style="margin-top:14px;">Antigüedad de las órdenes pendientes, por tramos de espera:</p>'
++'<table><tr><th>Zona operativa</th>'+AGE_BUCKETS_RPT.map(function(b){return '<th class="num">'+AGE_LABELS_RPT[b]+'</th>';}).join('')+'</tr>'
++ageHtml
++'<tr style="font-weight:700;"><td>Total región</td>'+AGE_BUCKETS_RPT.map(function(b){return '<td class="num">'+ageTotalsRpt[b]+'</td>';}).join('')+'</tr></table>'
++'<div class="note" style="margin-top:10px;"><b>⚠ '+totCritico+' órdenes sin gestión y con más de 24h de espera</b> — cruce de ambas alertas; es la prioridad más urgente para reasignar.</div>'
++criticoHtml
++'<h2>4. Propuesta de redistribución de móviles entre zonas</h2>'
 +'<p>Basada en dotación real por zona (planilla Segmento_DOM) y cercanía estimada entre bases zonales.</p>'
 +sugHtml
 +'<p class="note">Propuesta automática como punto de partida — despacho debe confirmar disponibilidad real del móvil antes de mover unidades.</p>'
@@ -3138,6 +3291,10 @@ function buildPrioridadReportHTML(){
 +'<details class="detalle-pie"><summary>📋 Ver detalle completo — Top 10 órdenes más antiguas por zona ('+top10Groups.length+' zonas, '+totalOrdDetalle+' órdenes listadas)</summary>'
 +'<div class="detalle-body"><p>Para uso operativo directo de las áreas: las órdenes que deben priorizarse primero en cada zona, ordenadas por tiempo de espera.</p>'
 +top10Html
++'</div></details>'
++'<details class="detalle-pie"><summary>🚚 Ver listado de móviles por zona ('+crewsDomRpt.length+' móviles con al menos 1 orden DOM asignada)</summary>'
++'<div class="detalle-body"><p>Cuadrillas que hoy tienen al menos una orden domiciliaria (DOM) asignada, agrupadas por su zona operativa.</p>'
++movilesHtml
 +'</div></details>'
 +'<div class="pie-final">Generado automáticamente desde Torre de Control Despacho Distribución (torre_data.json, snapshot '+snapTxt+'). '
 +'Excluye órdenes cerradas/completadas. Dotación de móviles según planilla Segmento_DOM (27.07.2026).</div>'
