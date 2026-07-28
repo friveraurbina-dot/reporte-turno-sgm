@@ -2171,7 +2171,7 @@ function switchTab(tab){
   document.getElementById('tab-propuesta').style.display = tab==='propuesta'?'block':'none';
 }
 
-let matrixView='combo', estadoMetric='ord';
+let matrixView='estado', estadoMetric='ord';
 function filterByTipoOrden(list){
   if(bitacoraTipoFilter==='DOM') return list.filter(o=>o.tipo==='DOM' && !o.electrodependiente);
   if(bitacoraTipoFilter==='MT') return list.filter(o=>o.tipo==='MT' && !o.electrodependiente);
@@ -2255,14 +2255,16 @@ function renderMatrix(){
     </table>
     <div class="note" style="margin-top:8px;"><b>${tipoOrdenLabel()}</b> · Espera = tiempo transcurrido entre la <b>creación de la orden</b> y la <b>hora de la consulta</b> (dato actual: ${document.getElementById('snapshot-badge')?document.getElementById('snapshot-badge').textContent:''}) · excluye ordenes cerradas/completadas.${allOldest?` Orden más antigua (pendiente): <b>#${escHtml(allOldest.id)}</b> (${ageLabel(allOldest._h)}, ${zonaLabel(allOldest.zona)}).`:''}</div>
   `;
-  const comboHtml = buildDomCriticas24hHtml() + estadoHtml + tiempoHtml;
+  const estadoTabHtml = buildDomCriticas24hHtml() + estadoHtml;
+  const tiempoTabHtml = tiempoHtml;
 
   const tabsHtml=`
     <div class="matrix-tabs">
       <button class="mtab ${matrixView==='zona'?'active':''}" data-v="zona">Unidades por zona (DOM)</button>
-      <button class="mtab ${matrixView==='combo'?'active':''}" data-v="combo">Estado y Tiempo por zona</button>
+      <button class="mtab ${matrixView==='estado'?'active':''}" data-v="estado">Estado por zona</button>
+      <button class="mtab ${matrixView==='tiempo'?'active':''}" data-v="tiempo">Tiempo por zona</button>
     </div>`;
-  const body = matrixView==='zona' ? zonaHtml : comboHtml;
+  const body = matrixView==='zona' ? zonaHtml : matrixView==='tiempo' ? tiempoTabHtml : estadoTabHtml;
   document.getElementById('priority-matrix').innerHTML = `<div class="matrix-wrap">${tabsHtml}${body}</div>`;
   document.querySelectorAll('#priority-matrix .mtab').forEach(b=>b.addEventListener('click',()=>{ matrixView=b.dataset.v; renderMatrix(); }));
   document.querySelectorAll('#priority-matrix .mmtab').forEach(b=>b.addEventListener('click',()=>{ estadoMetric=b.dataset.m; renderMatrix(); }));
