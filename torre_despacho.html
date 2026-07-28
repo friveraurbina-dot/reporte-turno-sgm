@@ -3137,24 +3137,99 @@ function buildPrioridadReportHTML(){
   const totalCapDia = totalFlota*DOM_ORDENES_PROMEDIO_MOVIL_DIA;
   const totalDias = totalCapDia>0 ? totalBacklog/totalCapDia : Infinity;
 
-  // ---- propuesta de redistribución (dotación real + cercanía de bases) ----
+  // ---- urgencia por zona: combina backlog (dias), espera maxima y % sin gestion ----
+  const critByZonaMap = {};
+  critRows.forEach(function(c){ critByZonaMap[c.zona] = c; });
+  const maxDiasFinite = Math.max.apply(null, flotaRows.map(function(f){ return f.dias===Infinity?0:f.dias; }).concat([0.001]));
+  const maxEsperaH = Math.max.apply(null, critRows.map(function(c){ return c.maxH; }).concat([1]));
+  const urgencyByZona = {};
+  flotaRows.forEach(function(f){
+    const diasN = f.dias===Infinity ? 1 : Math.min(1, f.dias/maxDiasFinite);
+    const esperaN = critByZonaMap[f.zona] ? Math.min(1, critByZonaMap[f.zona].maxH/maxEsperaH) : 0;
+    const g = gestByZona[f.zona];
+    const totG = g ? (g.ges+g.singes) : 0;
+    const singesPct = totG>0 ? g.singes/totG : 0;
+    urgencyByZona[f.zona] = { score: 0.5*diasN + 0.3*esperaN + 0.2*singesPct, diasN:diasN, esperaN:esperaN, singesPct:singesPct };
+  });
+
+  // ---- propuesta de redistribución (dotación real + cercanía de bases + urgencia) ----
   const donantesPool = flotaRows.filter(function(r){return r.libres>0;}).map(function(r){return Object.assign({},r);});
   const receptores = flotaRows.filter(function(r){return r.libres===0 && r.ordenes>0;})
-    .sort(function(a,b){return b.cpmDotacion-a.cpmDotacion;});
+    .sort(function(a,b){ const ua=urgencyByZona[a.zona]?urgencyByZona[a.zona].score:0, ub=urgencyByZona[b.zona]?urgencyByZona[b.zona].score:0; return ub-ua; });
   const sugerencias = [];
   receptores.slice(0,6).forEach(function(dest){
     const candidatos = donantesPool.filter(function(c){return c.libres>0 && c.zona!==dest.zona;});
     if(!candidatos.length) return;
-    let best=null, bestMin=null;
+    let best=null, bestMin=null, bestComp=null;
     candidatos.forEach(function(c){
       const b1=DOM_ZONA_BASE[c.zona], b2=DOM_ZONA_BASE[dest.zona];
-      const t = (b1&&b2) ? estTravelMin(haversineKm(b1,b2)) : null;
-      if(best===null || (t!=null && (bestMin==null||t<bestMin))){ best=c; bestMin=t; }
+      const t = (b1&&b2) ? estTravelMin(haversineKm(b1,b2)) : 999;
+      const donorUrg = urgencyByZona[c.zona] ? urgencyByZona[c.zona].score : 0;
+      const comp = donorUrg*100 + t; // prioriza donantes poco urgentes y cercanos
+      if(best===null || comp<bestComp){ best=c; bestComp=comp; bestMin=(b1&&b2)?Math.round(t):null; }
     });
-    sugerencias.push({origen:best.zona, destino:dest.zona, minTraslado: bestMin!=null?Math.round(bestMin):null,
-      origenFlota:best.flotaTotal, origenLibres:best.libres, destinoFlota:dest.flotaTotal, destinoCpm:dest.cpmDotacion});
+    const diasAntes = dest.dias;
+    const flotaNueva = dest.flotaTotal+1;
+    const capNueva = flotaNueva*DOM_ORDENES_PROMEDIO_MOVIL_DIA;
+    const diasDespues = capNueva>0 ? dest.clientes/capNueva : Infinity;
+    sugerencias.push({origen:best.zona, destino:dest.zona, minTraslado: bestMin,
+      origenFlota:best.flotaTotal, origenLibres:best.libres, destinoFlota:dest.flotaTotal, destinoCpm:dest.cpmDotacion,
+      diasAntes:diasAntes, diasDespues:diasDespues});
     best.libres -= 1;
   });
+
+  // ---- mapa SVG de la propuesta de redistribución ----
+  function buildRedistribucionMapSVG(){
+    const W=680, H=440, PAD=64;
+    const lats = Object.keys(DOM_ZONA_BASE).map(function(z){return DOM_ZONA_BASE[z].lat;});
+    const lons = Object.keys(DOM_ZONA_BASE).map(function(z){return DOM_ZONA_BASE[z].lon;});
+    const latMin=Math.min.apply(null,lats), latMax=Math.max.apply(null,lats);
+    const lonMin=Math.min.apply(null,lons), lonMax=Math.max.apply(null,lons);
+    function toXY(zona){
+      const b = DOM_ZONA_BASE[zona];
+      if(!b) return {x:W/2,y:H/2};
+      const x = PAD + (b.lon-lonMin)/((lonMax-lonMin)||1) * (W-2*PAD);
+      const y = PAD + (latMax-b.lat)/((latMax-latMin)||1) * (H-2*PAD);
+      return {x:x,y:y};
+    }
+    function urgColor(score){
+      if(score>=0.66) return '#c0392b';
+      if(score>=0.33) return '#e08a00';
+      return '#2e7d32';
+    }
+    const byZona = {};
+    flotaRows.forEach(function(f){ byZona[f.zona]=f; });
+    let svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="auto" role="img" aria-label="Mapa de redistribución de móviles" style="max-width:620px; display:block; margin:16px auto; background:#f8f6f5; border-radius:8px;">';
+    svg += '<defs><marker id="arrowh" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#7a1f14"/></marker></defs>';
+    sugerencias.forEach(function(s){
+      const p1=toXY(s.origen), p2=toXY(s.destino);
+      const mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
+      const dx=p2.x-p1.x, dy=p2.y-p1.y, norm=Math.sqrt(dx*dx+dy*dy)||1;
+      const nx=-dy/norm, ny=dx/norm, curve=24;
+      const cx=mx+nx*curve, cy=my+ny*curve;
+      svg += '<path d="M'+p1.x.toFixed(1)+','+p1.y.toFixed(1)+' Q'+cx.toFixed(1)+','+cy.toFixed(1)+' '+p2.x.toFixed(1)+','+p2.y.toFixed(1)+'" fill="none" stroke="#7a1f14" stroke-width="2.5" marker-end="url(#arrowh)" opacity="0.85"/>';
+      svg += '<text x="'+cx.toFixed(1)+'" y="'+(cy-3).toFixed(1)+'" text-anchor="middle" font-size="10" fill="#7a1f14" font-weight="700">+1 móvil · '+(s.minTraslado!=null?s.minTraslado+' min':'—')+'</text>';
+    });
+    Object.keys(DOM_ZONA_BASE).forEach(function(z){
+      const p=toXY(z), f=byZona[z];
+      const urg = urgencyByZona[z] ? urgencyByZona[z].score : 0;
+      const r = f ? Math.max(11, Math.min(30, 9+f.flotaTotal*0.75)) : 13;
+      svg += '<circle cx="'+p.x.toFixed(1)+'" cy="'+p.y.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="'+urgColor(urg)+'" fill-opacity="0.88" stroke="#fff" stroke-width="2.5"/>';
+      svg += '<text x="'+p.x.toFixed(1)+'" y="'+(p.y-r-7).toFixed(1)+'" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1c1c1c">'+zl(z)+'</text>';
+      if(f){
+        const diasTxt = f.dias===Infinity?'—':f.dias.toFixed(1)+'d';
+        svg += '<text x="'+p.x.toFixed(1)+'" y="'+(p.y+r+15).toFixed(1)+'" text-anchor="middle" font-size="9.5" fill="#555">'+f.clientes+' cli · '+diasTxt+'</text>';
+      }
+    });
+    svg += '</svg>';
+    return svg;
+  }
+  const redistMapHtml = '<div style="text-align:center;">' + buildRedistribucionMapSVG() + '</div>'
+    + '<div class="note" style="display:flex; gap:18px; flex-wrap:wrap; align-items:center; justify-content:center;">'
+    + '<span>🟢 Urgencia baja &nbsp; 🟠 Urgencia media &nbsp; 🔴 Urgencia alta <span class="muted">(combina backlog, espera máxima y % sin gestión)</span></span>'
+    + '<span>Tamaño del círculo = dotación total de móviles DOM en la zona</span>'
+    + '<span>Flecha = movimiento sugerido (origen → destino)</span>'
+    + '</div>';
 
   // ---- HTML: zonas criticas ----
   let critHtml = '';
@@ -3176,9 +3251,12 @@ function buildPrioridadReportHTML(){
   // ---- HTML: redistribución ----
   let sugHtml;
   if(sugerencias.length){
-    sugHtml = '<ol class="reco-list">' + sugerencias.map(function(s){
+    sugHtml = redistMapHtml + '<ol class="reco-list">' + sugerencias.map(function(s){
       const tTxt = s.minTraslado!=null ? (s.minTraslado+' min entre bases') : 'tiempo de traslado no disponible';
-      return '<li>Mover <b>1 móvil</b> desde la base de <b>'+zl(s.origen)+'</b> (dotación '+s.origenFlota+', '+s.origenLibres+' libres estimados) hacia <b>'+zl(s.destino)+'</b> (dotación '+s.destinoFlota+', '+s.destinoCpm.toFixed(1)+' clientes/móvil) — traslado estimado '+tTxt+'.</li>';
+      const diasAntesTxt = s.diasAntes===Infinity ? '—' : s.diasAntes.toFixed(1)+' días';
+      const diasDespuesTxt = s.diasDespues===Infinity ? '—' : s.diasDespues.toFixed(1)+' días';
+      return '<li>Mover <b>1 móvil</b> desde la base de <b>'+zl(s.origen)+'</b> (dotación '+s.origenFlota+', móvil disponible sin comprometer su backlog) hacia <b>'+zl(s.destino)+'</b> (dotación '+s.destinoFlota+', '+s.destinoCpm.toFixed(1)+' clientes/móvil) — traslado estimado '+tTxt+'. '
+        +'<span style="color:#2e7d32; font-weight:600;">Impacto proyectado: reduce el tiempo estimado de resolución de '+zl(s.destino)+' de <b>'+diasAntesTxt+'</b> a <b>'+diasDespuesTxt+'</b>.</span></li>';
     }).join('') + '</ol>';
   } else {
     sugHtml = '<p class="note">Con la dotación total actual no se identifican zonas con móviles libres claros para reforzar otras zonas.</p>';
@@ -3234,9 +3312,9 @@ function buildPrioridadReportHTML(){
 +'  .anexo-sep { text-align:center; margin:40px 0 4px; color:var(--muted); font-size:11px; letter-spacing:.08em; border-top:1px dashed var(--line); line-height:0; }'
 +'  .anexo-sep span { background:var(--bg); padding:0 10px; }'
 +'  footer { margin-top:24px; padding-top:14px; font-size:11px; color:var(--muted); }'
-+'  details.detalle-pie { border:1px solid var(--line); border-radius:6px; padding:10px 14px; margin-bottom:14px; background:#fafafa; }'
-+'  details.detalle-pie summary { cursor:pointer; font-weight:600; font-size:12.5px; color:var(--ink); }'
-+'  details.detalle-pie .detalle-body { margin-top:10px; }'
++'  .detalle-pie { border:1px solid var(--line); border-radius:6px; padding:10px 14px; margin-bottom:14px; background:#fafafa; }'
++'  .detalle-pie .detalle-title { font-weight:700; font-size:12.5px; color:var(--ink); }'
++'  .detalle-pie .detalle-body { margin-top:10px; }'
 +'  .pie-final { padding-top:8px; }'
 +'  @media print { body{background:#fff;} .page{box-shadow:none; padding:0;} }'
 +'</style></head><body><div class="page">'
@@ -3288,14 +3366,14 @@ function buildPrioridadReportHTML(){
 +'<p class="note">Propuesta automática como punto de partida — despacho debe confirmar disponibilidad real del móvil antes de mover unidades.</p>'
 +'<div class="anexo-sep"><span>ANEXO — DETALLE OPERATIVO</span></div>'
 +'<footer>'
-+'<details class="detalle-pie"><summary>📋 Ver detalle completo — Top 10 órdenes más antiguas por zona ('+top10Groups.length+' zonas, '+totalOrdDetalle+' órdenes listadas)</summary>'
++'<div class="detalle-pie"><div class="detalle-title">📋 Detalle completo — Top 10 órdenes más antiguas por zona ('+top10Groups.length+' zonas, '+totalOrdDetalle+' órdenes listadas)</div>'
 +'<div class="detalle-body"><p>Para uso operativo directo de las áreas: las órdenes que deben priorizarse primero en cada zona, ordenadas por tiempo de espera.</p>'
 +top10Html
-+'</div></details>'
-+'<details class="detalle-pie"><summary>🚚 Ver listado de móviles por zona ('+crewsDomRpt.length+' móviles con al menos 1 orden DOM asignada)</summary>'
++'</div></div>'
++'<div class="detalle-pie"><div class="detalle-title">🚚 Listado de móviles por zona ('+crewsDomRpt.length+' móviles con al menos 1 orden DOM asignada)</div>'
 +'<div class="detalle-body"><p>Cuadrillas que hoy tienen al menos una orden domiciliaria (DOM) asignada, agrupadas por su zona operativa.</p>'
 +movilesHtml
-+'</div></details>'
++'</div></div>'
 +'<div class="pie-final">Generado automáticamente desde Torre de Control Despacho Distribución (torre_data.json, snapshot '+snapTxt+'). '
 +'Excluye órdenes cerradas/completadas. Dotación de móviles según planilla Segmento_DOM (27.07.2026).</div>'
 +'</footer></div></body></html>';
