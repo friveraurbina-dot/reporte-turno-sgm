@@ -1326,6 +1326,53 @@ const DOM_FLOTA_COMUNA_BASE = {
 
 const DOM_ORDENES_PROMEDIO_MOVIL_DIA = 5.5;
 
+// ---- Jornada laboral de las cuadrillas: 08:00 a 20:00 (12 h/dia) ----
+const WORK_START_H = 8, WORK_END_H = 20, WORK_HOURS_DIA = WORK_END_H - WORK_START_H;
+
+function horasTrabajoParaResolver(clientes, flotaTotal){
+  if(!flotaTotal || flotaTotal<=0) return Infinity;
+  const ratePerHourPerMovil = DOM_ORDENES_PROMEDIO_MOVIL_DIA / WORK_HOURS_DIA;
+  const capPerHour = flotaTotal * ratePerHourPerMovil;
+  return capPerHour>0 ? (clientes/capPerHour) : Infinity;
+}
+
+// Estima la fecha/hora real en que se resolveria el backlog, respetando que las
+// cuadrillas solo avanzan dentro del horario 08:00-20:00 (fuera de jornada no suman horas).
+function estimarEtaResolucion(horasNecesarias, desde){
+  if(!isFinite(horasNecesarias)) return null;
+  const d0 = (desde instanceof Date && !isNaN(desde)) ? desde : new Date();
+  function enJornada(d){ const h=d.getHours()+d.getMinutes()/60; return h>=WORK_START_H && h<WORK_END_H; }
+  function inicioProximaJornada(d){
+    const r=new Date(d); const h=d.getHours()+d.getMinutes()/60;
+    if(h<WORK_START_H){ r.setHours(WORK_START_H,0,0,0); return r; }
+    r.setDate(r.getDate()+1); r.setHours(WORK_START_H,0,0,0); return r;
+  }
+  let cursor = new Date(d0.getTime());
+  if(!enJornada(cursor)) cursor = inicioProximaJornada(cursor);
+  let restante = horasNecesarias, diasCalendario = 0, guard = 0;
+  while(restante > 1e-6 && guard < 3650){
+    guard++;
+    const h = cursor.getHours()+cursor.getMinutes()/60;
+    const disponibleHoy = WORK_END_H - h;
+    if(restante <= disponibleHoy){
+      cursor = new Date(cursor.getTime() + restante*3600000);
+      restante = 0;
+    } else {
+      restante -= disponibleHoy;
+      diasCalendario++;
+      cursor.setDate(cursor.getDate()+1);
+      cursor.setHours(WORK_START_H,0,0,0);
+    }
+  }
+  return {fecha:cursor, diasCalendario:diasCalendario};
+}
+function fmtHorasCorta(h){ return isFinite(h) ? h.toFixed(1)+' h' : '—'; }
+function fmtEtaCorta(eta){
+  if(!eta) return '—';
+  const txt = eta.fecha.toLocaleString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  return txt + (eta.diasCalendario>0 ? ' (+'+eta.diasCalendario+'j)' : ' (hoy)');
+}
+
 function aggDomFlotaPorZona(orders){
   const map = {};
   Object.keys(DOM_FLOTA_TOTAL).forEach(function(z){
@@ -1428,10 +1475,13 @@ function buildFlotaZonaHtml(zonaRows, travelInfo){
 
 function buildCapacidadResolucionHtml(zonaRows){
   const zonaLabel = function(z){ return (z||'').replace('Zona_','').replace(/_/g,' '); };
+  const ahora = new Date();
   const rows = zonaRows.map(function(r){
     const capacidadDia = r.flotaTotal * DOM_ORDENES_PROMEDIO_MOVIL_DIA;
     const dias = capacidadDia>0 ? (r.clientes / capacidadDia) : Infinity;
-    return Object.assign({}, r, {capacidadDia: capacidadDia, dias: dias});
+    const horasNecesarias = horasTrabajoParaResolver(r.clientes, r.flotaTotal);
+    const eta = estimarEtaResolucion(horasNecesarias, ahora);
+    return Object.assign({}, r, {capacidadDia: capacidadDia, dias: dias, horasNecesarias: horasNecesarias, eta: eta});
   }).sort(function(a,b){ return b.dias - a.dias; });
 
   function estadoTag(dias){
@@ -1447,17 +1497,19 @@ function buildCapacidadResolucionHtml(zonaRows){
   const totalDias = totalCapacidadDia>0 ? (totalBacklog/totalCapacidadDia) : Infinity;
 
   const comunaBaseRows = Object.entries(DOM_FLOTA_COMUNA_BASE).sort(function(a,b){ return b[1]-a[1]; });
+  const totalHorasNecesarias = horasTrabajoParaResolver(totalBacklog, totalFlota);
+  const totalEta = estimarEtaResolucion(totalHorasNecesarias, ahora);
 
   return `
     <h3>Capacidad de atención y tiempo estimado para resolver el backlog</h3>
-    <p class="prop-note">Supuesto de rendimiento: <b>${DOM_ORDENES_PROMEDIO_MOVIL_DIA} órdenes/móvil/día</b> (promedio 5-6 diarias). <b>Días estimados</b> = backlog actual de clientes ÷ (dotación total × rendimiento diario), asumiendo dedicación completa a resolver pendientes y sin considerar ingreso de nuevas órdenes durante ese período — es un piso, no un compromiso de plazo.</p>
+    <p class="prop-note">Supuesto de rendimiento: <b>${DOM_ORDENES_PROMEDIO_MOVIL_DIA} órdenes/móvil/día</b> (promedio 5-6 diarias). <b>Días estimados</b> = backlog actual de clientes ÷ (dotación total × rendimiento diario), asumiendo dedicación completa a resolver pendientes y sin considerar ingreso de nuevas órdenes durante ese período — es un piso, no un compromiso de plazo. <b>⏱ Jornada laboral considerada: 08:00 a 20:00 (12 h/día)</b> — las horas y la fecha estimada de solución solo avanzan dentro de ese horario; fuera de jornada el cálculo salta al inicio del día hábil siguiente.</p>
     <table class="prop-table prop-table-num">
-      <tr><th>Zona operativa</th><th>Dotación total</th><th>Capacidad diaria (órdenes)</th><th>Backlog actual (clientes)</th><th>Días estimados para resolver</th><th>Estado</th></tr>
+      <tr><th>Zona operativa</th><th>Dotación total</th><th>Capacidad diaria (órdenes)</th><th>Backlog actual (clientes)</th><th>Días estimados para resolver</th><th>Horas de trabajo necesarias</th><th>Solución estimada</th><th>Estado</th></tr>
       ${rows.map(function(r){
         const tag = estadoTag(r.dias);
-        return `<tr><td style="text-align:left">${zonaLabel(r.zona)}</td><td>${r.flotaTotal}</td><td>${r.capacidadDia.toFixed(0)}</td><td>${r.clientes}</td><td>${r.dias===Infinity?'—':r.dias.toFixed(1)}</td><td>${tag.icon} ${tag.label}</td></tr>`;
+        return `<tr><td style="text-align:left">${zonaLabel(r.zona)}</td><td>${r.flotaTotal}</td><td>${r.capacidadDia.toFixed(0)}</td><td>${r.clientes}</td><td>${r.dias===Infinity?'—':r.dias.toFixed(1)}</td><td>${fmtHorasCorta(r.horasNecesarias)}</td><td>${fmtEtaCorta(r.eta)}</td><td>${tag.icon} ${tag.label}</td></tr>`;
       }).join('')}
-      <tr style="font-weight:600"><td style="text-align:left">Total región</td><td>${totalFlota}</td><td>${totalCapacidadDia.toFixed(0)}</td><td>${totalBacklog}</td><td>${totalDias===Infinity?'—':totalDias.toFixed(1)}</td><td></td></tr>
+      <tr style="font-weight:600"><td style="text-align:left">Total región</td><td>${totalFlota}</td><td>${totalCapacidadDia.toFixed(0)}</td><td>${totalBacklog}</td><td>${totalDias===Infinity?'—':totalDias.toFixed(1)}</td><td>${fmtHorasCorta(totalHorasNecesarias)}</td><td>${fmtEtaCorta(totalEta)}</td><td></td></tr>
     </table>
     <h3>Dotación por comuna base (domicilio del móvil)</h3>
     <p class="prop-note">Referencia adicional de la misma planilla: dónde está basado cada móvil (independiente de en qué comuna esté resolviendo órdenes hoy). Útil para decidir desde qué comuna conviene sumar refuerzos cuando una zona completa está en estado crítico.</p>
@@ -3123,6 +3175,7 @@ function buildPrioridadReportHTML(){
     clientesPorZona[z] = (clientesPorZona[z]||0) + (o.clientes||0);
     if(o.crew){ (crewSeenByZona[z] = crewSeenByZona[z] || {})[o.crew] = true; }
   });
+  const ahoraRpt = new Date();
   const flotaRows = Object.keys(DOM_FLOTA_TOTAL).map(function(z){
     const flotaTotal = DOM_FLOTA_TOTAL[z];
     const activos = crewSeenByZona[z] ? Object.keys(crewSeenByZona[z]).length : 0;
@@ -3132,7 +3185,9 @@ function buildPrioridadReportHTML(){
     const capacidadDia = flotaTotal*DOM_ORDENES_PROMEDIO_MOVIL_DIA;
     const dias = capacidadDia>0 ? (clientes/capacidadDia) : Infinity;
     const cpmDotacion = flotaTotal>0 ? (clientes/flotaTotal) : Infinity;
-    return {zona:z, flotaTotal:flotaTotal, activosAhora:activos, libres:libres, ordenes:ordenes, clientes:clientes, capacidadDia:capacidadDia, dias:dias, cpmDotacion:cpmDotacion};
+    const horasNecesarias = horasTrabajoParaResolver(clientes, flotaTotal);
+    const eta = estimarEtaResolucion(horasNecesarias, ahoraRpt);
+    return {zona:z, flotaTotal:flotaTotal, activosAhora:activos, libres:libres, ordenes:ordenes, clientes:clientes, capacidadDia:capacidadDia, dias:dias, cpmDotacion:cpmDotacion, horasNecesarias:horasNecesarias, eta:eta};
   });
   flotaRows.sort(function(a,b){ const da=a.dias===Infinity?1e9:a.dias, db=b.dias===Infinity?1e9:b.dias; return db-da; });
 
@@ -3140,6 +3195,8 @@ function buildPrioridadReportHTML(){
   const totalBacklog = flotaRows.reduce(function(a,r){return a+r.clientes;},0);
   const totalCapDia = totalFlota*DOM_ORDENES_PROMEDIO_MOVIL_DIA;
   const totalDias = totalCapDia>0 ? totalBacklog/totalCapDia : Infinity;
+  const totalHorasNecesariasRpt = horasTrabajoParaResolver(totalBacklog, totalFlota);
+  const totalEtaRpt = estimarEtaResolucion(totalHorasNecesariasRpt, ahoraRpt);
 
   // ---- urgencia por zona: combina backlog (dias), espera maxima y % sin gestion ----
   const critByZonaMap = {};
@@ -3277,6 +3334,7 @@ function buildPrioridadReportHTML(){
     capHtml += '<tr><td>'+zl(f.zona)+'</td><td class="num">'+f.flotaTotal+'</td><td class="num">'+f.activosAhora+'</td>'
       +'<td class="num">'+f.libres+'</td><td class="num">'+f.ordenes+'</td><td class="num">'+f.clientes+'</td>'
       +'<td class="num">'+f.capacidadDia.toFixed(0)+'</td><td class="num">'+diasTxt+'</td>'
+      +'<td class="num">'+fmtHorasCorta(f.horasNecesarias)+'</td><td class="num">'+fmtEtaCorta(f.eta)+'</td>'
       +'<td><span class="tag" style="background:'+tag.color+'">'+tag.label+'</span></td></tr>';
   });
 
@@ -3370,12 +3428,15 @@ function buildPrioridadReportHTML(){
 +'<h2>2. Capacidad de atención vs. backlog actual</h2>'
 +'<p>Supuesto de rendimiento: <b>5,5 órdenes/móvil/día</b>. "Días estimados" = backlog de clientes de la zona ÷ (dotación total × rendimiento diario), '
 +'asumiendo dedicación completa a resolver pendientes — es un piso, no un compromiso de plazo. "Activos ahora" = móviles con una orden domiciliaria abierta '
-+'en este snapshot; "libres" = dotación total − activos ahora (estimado).</p>'
++'en este snapshot; "libres" = dotación total − activos ahora (estimado). <b>⏱ Jornada laboral considerada: 08:00 a 20:00 (12 h/día)</b> — "Horas de trabajo necesarias" '
++'y "Solución estimada" solo avanzan dentro de ese horario; fuera de jornada el cálculo salta al inicio del día hábil siguiente (calculado desde el momento de generación de este informe, '+genTxt+').</p>'
 +'<table><tr><th>Zona operativa</th><th class="num">Dotación total</th><th class="num">Activos ahora</th><th class="num">Libres (est.)</th>'
-+'<th class="num">Órdenes</th><th class="num">Clientes (backlog)</th><th class="num">Capacidad/día</th><th class="num">Días estimados</th><th>Estado</th></tr>'
++'<th class="num">Órdenes</th><th class="num">Clientes (backlog)</th><th class="num">Capacidad/día</th><th class="num">Días estimados</th>'
++'<th class="num">Horas de trabajo necesarias</th><th class="num">Solución estimada</th><th>Estado</th></tr>'
 +capHtml
 +'<tr style="font-weight:700;"><td>Total región</td><td class="num">'+totalFlota+'</td><td class="num">—</td><td class="num">—</td><td class="num">—</td>'
-+'<td class="num">'+totalBacklog+'</td><td class="num">'+totalCapDia.toFixed(0)+'</td><td class="num">'+(totalDias===Infinity?'—':totalDias.toFixed(1))+'</td><td></td></tr></table>'
++'<td class="num">'+totalBacklog+'</td><td class="num">'+totalCapDia.toFixed(0)+'</td><td class="num">'+(totalDias===Infinity?'—':totalDias.toFixed(1))+'</td>'
++'<td class="num">'+fmtHorasCorta(totalHorasNecesariasRpt)+'</td><td class="num">'+fmtEtaCorta(totalEtaRpt)+'</td><td></td></tr></table>'
 +'<div class="note">Nota importante: la dotación total agregada resulta "manejable" en la mayoría de las zonas bajo este supuesto de rendimiento diario, '
 +'pero la sección 1 muestra órdenes con hasta '+(critRows.length?fmtH(maxHCrit):'—')+' de espera real. Esto indica que el cuello de botella no es solo la '
 +'dotación total, sino su distribución/priorización dentro de la zona (móviles concentrados en órdenes recientes o de menor prioridad mientras las más antiguas '
