@@ -380,6 +380,7 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
     <button class="view-tab active" id="view-tab-mapa" type="button">🗺️ Mapa</button>
     <button class="view-tab" id="view-tab-prioridad" type="button">🏠 Prioridades Domiciliarias</button>
     <button class="view-tab" id="view-tab-analisis" type="button">📊 Propuesta: Análisis y Priorización</button>
+    <button class="view-tab" id="view-tab-poweron" type="button">⚡ PowerOn</button>
   </div>
 
   <div class="filter-strip" id="filter-strip">
@@ -527,6 +528,16 @@ table.matrix tr.p1-row td.rowlabel{color:#E0218A;}
         <p class="prop-note">Cruza el backlog de órdenes abiertas de cada zona operativa con la cantidad de cuadrillas asignadas a esa zona (activas: despachadas, en camino o en sitio; sin actividad: disponibles pero no operando). La columna <b>Órdenes / cuadrilla</b> ordena las zonas de mayor a menor presión — las de arriba son las que menos cuadrillas tienen en relación a su carga.</p>
         <div id="prop-cap-gap"><p class="prop-note">Se calcula al entrar a esta pestaña…</p></div>
       </div>
+    </div>
+  </div>
+
+  <div class="prop-view" id="poweron-view" style="display:none;">
+    <div class="prop-wrap">
+      <div class="prop-badge" style="color:var(--amber,#B9770E); background:rgba(185,119,14,.12); border-color:var(--amber,#B9770E);">EN VIVO &mdash; PowerOn / ADMS</div>
+      <h2>PowerOn &mdash; Órdenes de Restablecimiento</h2>
+      <p class="prop-lead">Órdenes activas exportadas desde <b>PowerOn/ADMS</b> (correo &quot;Poweron&quot;, actualización automática cada hora). Cuadro independiente de las órdenes DOM/RED del resto del tablero.</p>
+      <div id="poweron-updated" class="prop-note" style="display:none;"></div>
+      <div id="poweron-content"><p class="prop-note">Cargando datos de PowerOn…</p></div>
     </div>
   </div>
 
@@ -1183,6 +1194,58 @@ function renderPrioridadDom(){
   el.innerHTML = buildDomCriticas24hHtml() + buildDomTop10Html() + buildDomDetalleCompletoHtml();
 }
 window.renderPrioridadDom = renderPrioridadDom;
+
+// ===== PowerOn (ADMS) — pestaña independiente =====
+window.POWERON_DATA = null;
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function renderPoweron(){
+  const el = document.getElementById('poweron-content');
+  const upd = document.getElementById('poweron-updated');
+  if(!el) return;
+  const d = window.POWERON_DATA;
+  if(!d){
+    el.innerHTML = '<p class="prop-note">⚠️ Aún no hay datos de PowerOn cargados (poweron_data.json).</p>';
+    if(upd) upd.style.display = 'none';
+    return;
+  }
+  if(upd){
+    upd.style.display = '';
+    let updLabel = d.updated;
+    try{ const dt = new Date(d.updated); updLabel = dt.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+dt.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}); }catch(e){}
+    upd.innerHTML = '<b>Última actualización PowerOn:</b> ' + updLabel + ' &middot; ' + d.total_ordenes + ' órdenes activas';
+  }
+
+  const kpi = '<div class="po-kpi-row">'
+    + '<div class="po-kpi-card red"><div class="po-kpi-n">'+d.total_clientes+'</div><div class="po-kpi-l">Clientes afectados</div></div>'
+    + '<div class="po-kpi-card"><div class="po-kpi-n">'+d.total_ordenes+'</div><div class="po-kpi-l">Órdenes activas</div></div>'
+    + '<div class="po-kpi-card amber"><div class="po-kpi-n">'+d.clientes_predecida+'</div><div class="po-kpi-l">Clientes · predecida</div></div>'
+    + '<div class="po-kpi-card"><div class="po-kpi-n">'+d.clientes_confirmada+'</div><div class="po-kpi-l">Clientes · confirmada</div></div>'
+    + '</div>';
+
+  const zonaRows = (d.por_zona||[]).map(function(z){
+    return '<tr><td>'+esc(z.zona)+'</td><td>'+z.ordenes+'</td><td>'+z.clientes+'</td></tr>';
+  }).join('');
+  const zonaTable = '<h3>Por zona</h3><table class="prop-table prop-table-num"><tr><th>Zona</th><th>Órdenes</th><th>Clientes</th></tr>'+zonaRows+'</table>';
+
+  const estadoRows = (d.por_estado||[]).map(function(s){
+    return '<tr><td><span class="po-status-pill po-status-'+esc(s.status)+'">'+esc(s.label)+'</span></td><td>'+s.ordenes+'</td><td>'+s.clientes+'</td></tr>';
+  }).join('');
+  const estadoTable = '<h3>Por estado de orden</h3><table class="prop-table prop-table-num"><tr><th>Estado</th><th>Órdenes</th><th>Clientes</th></tr>'+estadoRows+'</table>';
+
+  const tipoRows = (d.por_tipo||[]).map(function(t){
+    return '<tr><td>'+esc(t.label)+'</td><td>'+t.ordenes+'</td><td>'+t.clientes+'</td></tr>';
+  }).join('');
+  const tipoTable = '<h3>Por tipo</h3><table class="prop-table prop-table-num"><tr><th>Tipo</th><th>Órdenes</th><th>Clientes</th></tr>'+tipoRows+'</table>';
+
+  const detRows = (d.orders||[]).map(function(o){
+    return '<tr><td>'+esc(o.ref)+'</td><td>'+esc(o.zona)+'</td><td><span class="po-status-pill po-status-'+esc(o.status)+'">'+esc(o.status_label)+'</span></td>'
+      + '<td>'+esc(o.type_label)+'</td><td>'+esc(o.power_status)+'</td><td>'+esc(o.equipo)+'</td><td>'+esc(o.cuadrilla)+'</td><td>'+o.clientes+'</td><td>'+esc(o.creation_time)+'</td></tr>';
+  }).join('');
+  const detTable = '<h3>Detalle de órdenes ('+(d.orders||[]).length+')</h3><table class="prop-table prop-table-num"><tr><th>Referencia</th><th>Zona</th><th>Estado</th><th>Tipo</th><th>Predicción</th><th>Equipo afectado</th><th>Cuadrilla</th><th>Clientes</th><th>Creación</th></tr>'+detRows+'</table>';
+
+  el.innerHTML = kpi + zonaTable + estadoTable + tipoTable + detTable;
+}
+window.renderPoweron = renderPoweron;
 
 function buildDomCriticas24hHtml(){
   const rows = domZonasCriticas24h();
@@ -3878,6 +3941,9 @@ async function startContingenciaPanel(){
     if(__d.snapshot) DATA_SNAPSHOT_TIME = __d.snapshot;
     try{ const __s=new Date(DATA_SNAPSHOT_TIME); const __l=__s.toLocaleDateString('es-CL',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+__s.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}); const __b=document.getElementById('snapshot-badge'); if(__b) __b.textContent='Datos al '+__l; }catch(e){}
   }catch(e){ console.error('No se pudo cargar torre_data.json', e); }
+  try{
+    window.POWERON_DATA = await fetch('poweron_data.json?v='+Date.now(), {cache:'no-store'}).then(r=> r.ok ? r.json() : null);
+  }catch(e){ console.error('No se pudo cargar poweron_data.json', e); window.POWERON_DATA = null; }
   await loadState();
   populateZonaSelect();
   selectedZona = 'ALL';
@@ -3945,6 +4011,18 @@ table.prop-table tr:hover td{background:rgba(210,35,42,.04);}
 .prop-subtabs{display:flex; gap:8px; margin:18px 0 22px;}
 .prop-subtab{flex:1; background:var(--panel2); border:1px solid var(--border); color:var(--muted); font-family:var(--body); font-size:13px; font-weight:700; padding:11px 14px; border-radius:9px; cursor:pointer;}
 .prop-subtab.active{background:var(--red); color:#fff; border-color:var(--red-dark);}
+#tower-root .po-kpi-row{display:flex; gap:14px; flex-wrap:wrap; margin:14px 0 20px;}
+#tower-root .po-kpi-card{flex:1; min-width:140px; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:14px 16px;}
+#tower-root .po-kpi-card .po-kpi-n{font-family:var(--mono); font-size:26px; font-weight:700; color:var(--text);}
+#tower-root .po-kpi-card .po-kpi-l{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:3px;}
+#tower-root .po-kpi-card.amber .po-kpi-n{color:var(--amber);}
+#tower-root .po-kpi-card.red .po-kpi-n{color:var(--red);}
+#tower-root .po-status-pill{display:inline-block; font-family:var(--mono); font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.02em;}
+#tower-root .po-status-new{background:rgba(210,35,42,.12); color:var(--red);}
+#tower-root .po-status-dispatched,#tower-root .po-status-assigned{background:rgba(124,58,237,.12); color:#7C3AED;}
+#tower-root .po-status-en_route{background:rgba(14,141,166,.12); color:var(--cyan);}
+#tower-root .po-status-arrived{background:rgba(185,119,14,.12); color:var(--amber);}
+#tower-root .po-status-in_progress{background:rgba(31,157,85,.12); color:var(--green);}
 </style>
 <script>
 (function(){
@@ -3952,11 +4030,13 @@ table.prop-table tr:hover td{background:rgba(210,35,42,.04);}
     var btnMapa = document.getElementById('view-tab-mapa');
     var btnAn = document.getElementById('view-tab-analisis');
     var btnPrio = document.getElementById('view-tab-prioridad');
+    var btnPower = document.getElementById('view-tab-poweron');
     var layout = document.querySelector('#tower-root .layout');
     var filterStrip = document.getElementById('filter-strip');
     var weatherStrip = document.getElementById('weather-strip');
     var propView = document.getElementById('prop-view');
     var prioView = document.getElementById('prioridad-view');
+    var powerView = document.getElementById('poweron-view');
     if(!btnMapa || !btnAn || !layout || !propView) return;
     function hideAll(){
       layout.style.display = 'none';
@@ -3964,8 +4044,10 @@ table.prop-table tr:hover td{background:rgba(210,35,42,.04);}
       if(weatherStrip) weatherStrip.style.display = 'none';
       propView.style.display = 'none';
       if(prioView) prioView.style.display = 'none';
+      if(powerView) powerView.style.display = 'none';
       btnMapa.classList.remove('active'); btnAn.classList.remove('active');
       if(btnPrio) btnPrio.classList.remove('active');
+      if(btnPower) btnPower.classList.remove('active');
     }
     function showMapa(){
       hideAll();
@@ -3986,9 +4068,16 @@ table.prop-table tr:hover td{background:rgba(210,35,42,.04);}
       if(btnPrio) btnPrio.classList.add('active');
       if(typeof renderPrioridadDom === 'function') renderPrioridadDom();
     }
+    function showPoweron(){
+      hideAll();
+      if(powerView) powerView.style.display = 'block';
+      if(btnPower) btnPower.classList.add('active');
+      if(typeof renderPoweron === 'function') renderPoweron();
+    }
     btnMapa.addEventListener('click', showMapa);
     btnAn.addEventListener('click', showAnalisis);
     if(btnPrio) btnPrio.addEventListener('click', showPrioridad);
+    if(btnPower) btnPower.addEventListener('click', showPoweron);
   }
   function initPropSubtabs(){
     var btnDom = document.getElementById('subtab-dom');
